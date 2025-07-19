@@ -1,0 +1,27 @@
+{
+  "name": "hackthe6ix-codeql-scanner",
+  "version": "1.0.0",
+  "description": "CodeQL vulnerability scanner for Hackthe6ix project",
+  "main": "codeQLScanner.js",
+  "scripts": {
+    "scan": "node codeQLScanner.js",
+    "test-scan": "node codeQLScanner.js vulnerable_test.js",
+    "help": "node codeQLScanner.js --help"
+  },
+  "keywords": [
+    "security",
+    "vulnerability",
+    "codeql",
+    "static-analysis",
+    "hackthe6ix"
+  ],
+  "author": "Hackthe6ix Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
