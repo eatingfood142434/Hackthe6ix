@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Github, AlertTriangle, CheckCircle, Loader2, Sparkles, Zap, Shield, ArrowRight, Copy, ExternalLink } from 'lucide-react';
+import { Github, AlertTriangle, CheckCircle, Loader2, Sparkles, Zap, Shield, ArrowRight, Copy, ExternalLink, GitBranch } from 'lucide-react';
 import axios from 'axios';
 
 interface SecurityIssue {
@@ -20,6 +20,13 @@ interface AnalysisResult {
     high: number;
     medium: number;
     low: number;
+  };
+  repository?: string;
+  filesAnalyzed?: number;
+  pullRequest?: {
+    created: boolean;
+    url: string;
+    number: number;
   };
 }
 
@@ -355,6 +362,37 @@ function App() {
                   </div>
                   <h3 className="text-3xl font-bold text-gray-900 mb-4">Awesome! No Security Issues Found!</h3>
                   <p className="text-xl text-gray-600 mb-8">Your repository appears to be secure based on our analysis. Keep up the great work!</p>
+                </div>
+              )}
+
+              {/* Pull Request */}
+              {result.pullRequest && result.pullRequest.created && (
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-xl mb-6 border-2 border-blue-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <GitBranch className="w-6 h-6 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-blue-800">🎉 Pull Request Created!</h3>
+                  </div>
+                  <p className="text-blue-700 mb-4">
+                    We've automatically created a pull request with a detailed security analysis report.
+                  </p>
+                  <div className="flex gap-3">
+                    <a
+                      href={result.pullRequest.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View Pull Request #{result.pullRequest.number}
+                    </a>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(result.pullRequest?.url || '')}
+                      className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors duration-200"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy Link
+                    </button>
+                  </div>
                 </div>
               )}
 
