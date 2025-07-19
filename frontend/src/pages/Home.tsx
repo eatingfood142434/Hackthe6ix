@@ -147,19 +147,6 @@ function Home() {
                   Analyze with Patchy
                 </div>
               </button>
-              
-              <button
-                type="button"
-                onClick={() => navigate('/results', { state: { fromTest: true } })}
-                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-4 px-8 rounded-xl font-semibold text-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-4 focus:ring-green-300/30 transition-all duration-300 btn-interactive hover-lift mt-2"
-              >
-                <div className="flex items-center justify-center">
-                  <svg className="w-6 h-6 mr-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  Test Results UI (Dev Mode)
-                </div>
-              </button>
             </form>
           </div>
 
