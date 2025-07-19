@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const NodeCache = require('node-cache');
+const { processFilesWithVellum } = require('./vellum');
 
 /**
  * GitHub API Integration - Simplified to read all file contents
