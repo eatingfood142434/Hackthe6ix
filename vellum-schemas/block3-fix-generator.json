@@ -40,17 +40,13 @@
             ],
             "description": "Type of vulnerability being fixed"
           },
-          "original_code": {
-            "type": "string",
-            "description": "The original vulnerable code snippet"
-          },
           "fixed_code": {
             "type": "string",
-            "description": "The secure replacement code"
+            "description": "The entire file containing the fix"
           },
           "explanation": {
             "type": "string",
-            "description": "Detailed explanation of what was changed and why"
+            "description": "Detailed explanation of snippet that was changed and why"
           },
           "additional_imports": {
             "type": "array",
@@ -62,23 +58,6 @@
           "security_notes": {
             "type": "string",
             "description": "Additional security considerations and best practices"
-          },
-          "line_range": {
-            "type": "object",
-            "description": "Line numbers affected by the fix",
-            "properties": {
-              "start": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Starting line number"
-              },
-              "end": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Ending line number"
-              }
-            },
-            "required": ["start", "end"]
           },
           "fix_confidence": {
             "type": "string",
