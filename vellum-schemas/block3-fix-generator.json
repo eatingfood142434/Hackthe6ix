@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "SecurityFixGeneratorOutput",
   "title": "Security Fix Generator Output",
   "description": "Output schema for the security fix generation block",
   "type": "object",
@@ -129,7 +130,6 @@
         "required": [
           "file_path",
           "vulnerability_type",
-          "original_code",
           "fixed_code",
           "explanation",
           "security_notes",
