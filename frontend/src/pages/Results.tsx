@@ -345,9 +345,27 @@ function Results() {
                       <code className="font-mono">{issue.file}</code>
                       {issue.line && <span className="ml-2">Line {issue.line}</span>}
                     </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <strong className="text-blue-800">Recommendation:</strong>
-                      <p className="text-blue-700 mt-1">{issue.recommendation}</p>
+                    <div className={`p-4 rounded-lg ${
+                      issue.severity === 'critical' ? 'bg-red-100' : 
+                      issue.severity === 'high' ? 'bg-orange-100' : 
+                      issue.severity === 'medium' ? 'bg-yellow-100' : 
+                      issue.severity === 'low' ? 'bg-blue-100' : 
+                      'bg-gray-100'
+                    }`}>
+                      <strong className={`${
+                        issue.severity === 'critical' ? 'text-red-800' : 
+                        issue.severity === 'high' ? 'text-orange-800' : 
+                        issue.severity === 'medium' ? 'text-yellow-800' : 
+                        issue.severity === 'low' ? 'text-blue-800' : 
+                        'text-gray-800'
+                      }`}>Recommendation:</strong>
+                      <p className={`mt-1 ${
+                        issue.severity === 'critical' ? 'text-red-700' : 
+                        issue.severity === 'high' ? 'text-orange-700' : 
+                        issue.severity === 'medium' ? 'text-yellow-700' : 
+                        issue.severity === 'low' ? 'text-blue-700' : 
+                        'text-gray-700'
+                      }`}>{issue.recommendation}</p>
                     </div>
                   </div>
                 ))}
@@ -394,7 +412,7 @@ function Results() {
                 </h3>
                 {prStatus.status === 'creating' && (
                   <div className="flex items-center text-blue-600">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-t-2 border-blue-600 mr-2"></div>
                     Creating pull request with security fixes...
                   </div>
                 )}
