@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Github, AlertTriangle, CheckCircle, Copy, ExternalLink, GitBranch, FileText, Shield, Clock, Settings } from 'lucide-react';
+import { Github, AlertTriangle, CheckCircle, Copy, ExternalLink, GitBranch, FileText, Shield, Clock, Settings, Home } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -57,6 +57,7 @@ interface VellumAnalysisResult {
   fixes: SecurityFix[];
   fix_summary: FixSummary;
   implementation_guide: ImplementationGuide;
+  scanned_files?: any;
 }
 
 interface AnalysisResult {
@@ -269,13 +270,88 @@ def login():
     }
   };
 
-  // Use real data if available, otherwise use sample data
-  const result: AnalysisResult = analysisResult || {
+  // Extract result data - handle both real API response and sample data
+  const result = location.state?.analysisResult;
+  
+  // Extract data from actual Vellum response
+  let data: VellumAnalysisResult;
+  
+  // Debug: Log the entire result structure to understand what we're getting
+  console.log('=== FULL RESULT STRUCTURE ===');
+  console.log('result:', result);
+  console.log('result.vellumRaw:', result?.vellumRaw);
+  console.log('result.analysis:', result?.analysis);
+  console.log('result.pullRequest:', result?.pullRequest);
+  
+  if (result && result.vellumRaw && Array.isArray(result.vellumRaw)) {
+    // Extract from actual Vellum response array
+    const resultsOutput = result.vellumRaw.find((output: any) => output.name === 'results');
+    const scannedFilesOutput = result.vellumRaw.find((output: any) => output.name === 'scanned-files');
+    
+    console.log('=== VELLUM OUTPUTS ===');
+    console.log('resultsOutput:', resultsOutput);
+    console.log('scannedFilesOutput:', scannedFilesOutput);
+    
+    // Debug fix data structure to understand severity/risk fields
+    if (resultsOutput?.value?.fixes) {
+      console.log('=== FIX DATA STRUCTURE DEBUG ===');
+      resultsOutput.value.fixes.forEach((fix: any, index: number) => {
+        console.log(`Fix ${index}:`, {
+          file_path: fix.file_path,
+          vulnerability_type: fix.vulnerability_type,
+          fix_confidence: fix.fix_confidence,
+          severity: fix.severity,
+          risk_level: fix.risk_level,
+          priority: fix.priority,
+          all_keys: Object.keys(fix)
+        });
+      });
+      
+      // Also check if there's summary data from backend
+      console.log('=== BACKEND SUMMARY DATA ===');
+      console.log('fix_summary from backend:', resultsOutput?.value?.fix_summary);
+    }
+    
+    data = {
+      type: 'security_analysis',
+      title: 'Security Analysis Results',
+      description: 'Automated security vulnerability analysis and fixes',
+      fixes: resultsOutput?.value?.fixes || [],
+      fix_summary: resultsOutput?.value?.fix_summary || {
+        total_fixes: resultsOutput?.value?.fixes?.length || 0,
+        files_modified: resultsOutput?.value?.fixes?.length || 0,
+        high_confidence_fixes: resultsOutput?.value?.fixes?.filter((f: any) => f.fix_confidence === 'HIGH').length || 0,
+        medium_confidence_fixes: resultsOutput?.value?.fixes?.filter((f: any) => f.fix_confidence === 'MEDIUM').length || 0,
+        low_confidence_fixes: resultsOutput?.value?.fixes?.filter((f: any) => f.fix_confidence === 'LOW').length || 0,
+        breaking_changes_count: resultsOutput?.value?.fixes?.filter((f: any) => f.breaking_changes).length || 0,
+        estimated_fix_time: resultsOutput?.value?.fix_summary?.estimated_fix_time || '~2 hours',
+        priority_order: resultsOutput?.value?.fixes?.map((f: any) => f.file_path) || []
+      },
+      implementation_guide: resultsOutput?.value?.implementation_guide || {
+        prerequisites: ['Create backups or commit current state to VCS'],
+        deployment_steps: resultsOutput?.value?.implementation_guide?.deployment_steps || [],
+        rollback_plan: resultsOutput?.value?.implementation_guide?.rollback_plan || 'Restore from backup',
+        monitoring_recommendations: resultsOutput?.value?.implementation_guide?.monitoring_recommendations || []
+      },
+      scanned_files: scannedFilesOutput?.value || null
+    };
+  } else {
+    // Fallback to sample data or direct result
+    data = result?.data || sampleVellumData;
+  }
+
+  // Ensure data is never undefined
+  if (!data) {
+    data = sampleVellumData;
+  }
+
+  // Use the extracted data
+  const resultData: AnalysisResult = {
     status: 'success',
-    data: sampleVellumData,
-    repository: 'example/security-repo',
-    filesAnalyzed: 10,
-    pullRequest: {
+    data,
+    repository: result?.analysis?.summary?.repository || 'example/security-repo',
+    filesAnalyzed: result?.analysis?.summary?.total_files_scanned || data?.fixes?.length || 10,
+    pullRequest: result?.pullRequest || {
       created: true,
       url: 'https://github.com/example/security-repo/pull/1',
       number: 1
@@ -284,8 +360,10 @@ def login():
 
   // Debug log to check if data is properly set
   console.log('Sample Vellum Data:', sampleVellumData);
-  console.log('Result Data:', result.data);
-  console.log('Fix Summary:', result.data?.fix_summary);
+  console.log('Result Data:', result?.data);
+  console.log('Fix Summary:', result?.data?.fix_summary);
+  console.log('Extracted Data:', data);
+  console.log('Final Result Data:', resultData);
 
   useEffect(() => {
     // If no data was passed, redirect to home
@@ -337,9 +415,52 @@ def login():
     setTimeout(checkStatus, 3000);
   };
 
-  const getSeverityColor = (confidence: string) => {
-    switch (confidence) {
+  // Normalize confidence values to handle different formats
+  const normalizeConfidence = (confidence: any): string => {
+    if (!confidence) return 'UNKNOWN';
+    
+    const confidenceStr = String(confidence).toUpperCase().trim();
+    
+    // Handle different possible formats
+    if (confidenceStr.includes('HIGH')) return 'HIGH';
+    if (confidenceStr.includes('MEDIUM')) return 'MEDIUM';
+    if (confidenceStr.includes('LOW')) return 'LOW';
+    
+    // Handle numeric confidence (if any)
+    if (confidenceStr === '3') return 'HIGH';
+    if (confidenceStr === '2') return 'MEDIUM';
+    if (confidenceStr === '1') return 'LOW';
+    
+    console.warn('Unknown confidence format:', confidence);
+    return 'UNKNOWN';
+  };
+
+  // Get severity/risk level from fix data
+  const getSeverityLevel = (fix: any): string => {
+    // Check various possible severity fields
+    if (fix.severity) return String(fix.severity).toUpperCase();
+    if (fix.risk_level) return String(fix.risk_level).toUpperCase();
+    if (fix.priority) {
+      const priority = String(fix.priority).toUpperCase();
+      if (priority === 'HIGH' || priority === 'CRITICAL') return 'HIGH';
+      if (priority === 'MEDIUM') return 'MEDIUM';
+      if (priority === 'LOW') return 'LOW';
+    }
+    
+    // Fallback: determine severity from vulnerability type
+    const vulnType = String(fix.vulnerability_type || '').toUpperCase();
+    if (vulnType.includes('INJECTION') || vulnType.includes('XSS') || vulnType.includes('CSRF')) {
+      return 'HIGH'; // Security vulnerabilities are typically high severity
+    }
+    
+    return 'MEDIUM'; // Default to medium if unknown
+  };
+
+  const getSeverityColor = (fix: any) => {
+    const severity = getSeverityLevel(fix);
+    switch (severity) {
       case 'HIGH':
+      case 'CRITICAL':
         return 'border-red-300 bg-red-50';
       case 'MEDIUM':
         return 'border-orange-300 bg-orange-50';
@@ -350,9 +471,11 @@ def login():
     }
   };
 
-  const getSeverityIcon = (confidence: string) => {
-    switch (confidence) {
+  const getSeverityIcon = (fix: any) => {
+    const severity = getSeverityLevel(fix);
+    switch (severity) {
       case 'HIGH':
+      case 'CRITICAL':
         return <AlertTriangle className="w-6 h-6 text-red-600" />;
       case 'MEDIUM':
         return <AlertTriangle className="w-6 h-6 text-orange-600" />;
@@ -395,11 +518,20 @@ def login():
           
           {/* Header */}
           <div className="text-center mb-12">
-            <div className="flex justify-center items-center mb-6">
+            <div className="flex justify-center items-center mb-6 relative">
               <div className="relative">
                 <img src="/logo.png" alt="Logo" className="w-20 h-20 mr-4" />
               </div>
               <h1 className="text-6xl font-bold text-white">Patchy</h1>
+              {/* Return Home Button */}
+              <button
+                onClick={() => navigate('/')}
+                className="absolute right-0 -top-8 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:scale-105 backdrop-blur-sm border border-white/20"
+                title="Return to Home"
+              >
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">Home</span>
+              </button>
             </div>
             <p className="text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
               Security Analysis Complete
@@ -453,59 +585,57 @@ def login():
           <div className="space-y-6">
             {/* Summary Cards */}
             {result.data && (
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="glass-strong p-6 rounded-xl text-center hover-lift">
-                  <div className="text-3xl font-bold text-gray-900">{result.data.fix_summary.total_fixes}</div>
+                  <div className="text-3xl font-bold text-gray-900">{result.data.fix_summary?.total_fixes || 0}</div>
                   <div className="text-sm text-gray-600">Total Fixes</div>
                 </div>
-                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-red-50 to-red-100">
-                  <div className="text-3xl font-bold text-red-600">{result.data.fix_summary.high_confidence_fixes}</div>
-                  <div className="text-sm text-red-600">High Confidence Fixes</div>
+                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-green-50 to-green-100">
+                  <div className="text-3xl font-bold text-green-600">{result.data.fix_summary?.files_modified || 0}</div>
+                  <div className="text-sm text-green-600">Files Modified</div>
                 </div>
                 <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-orange-50 to-orange-100">
-                  <div className="text-3xl font-bold text-orange-600">{result.data.fix_summary.medium_confidence_fixes}</div>
-                  <div className="text-sm text-orange-600">Medium Confidence Fixes</div>
+                  <div className="text-3xl font-bold text-orange-600">{result.data.fix_summary?.breaking_changes_count || 0}</div>
+                  <div className="text-sm text-orange-600">Breaking Changes</div>
                 </div>
-                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-yellow-50 to-yellow-100">
-                  <div className="text-3xl font-bold text-yellow-600">{result.data.fix_summary.low_confidence_fixes}</div>
-                  <div className="text-sm text-yellow-600">Low Confidence Fixes</div>
-                </div>
-                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-blue-50 to-blue-100">
-                  <div className="text-3xl font-bold text-blue-600">{result.data.fix_summary.breaking_changes_count}</div>
-                  <div className="text-sm text-blue-600">Breaking Changes</div>
+                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-purple-50 to-purple-100">
+                  <div className="text-2xl font-bold text-purple-600">
+                    <Clock className="w-5 h-5 inline" />
+                  </div>
+                  <div className="text-sm text-purple-600">{result.data.fix_summary?.estimated_fix_time || '~2 hours'}</div>
                 </div>
               </div>
             )}
 
             {/* Fixes */}
-            {result.data && (
+            {resultData?.data && resultData.data.fixes && resultData.data.fixes.length > 0 && (
               <div className="glass-strong rounded-2xl p-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Security Fixes</h3>
                 <div className="space-y-4">
-                  {result.data.fixes.map((fix, index) => (
+                  {resultData.data.fixes.map((fix: any, index: number) => (
                     <div
                       key={index}
-                      className={`border-2 rounded-xl p-6 hover-lift transition-all duration-300 ${getSeverityColor(fix.fix_confidence)}`}
+                      className={`border-2 rounded-xl p-6 hover-lift transition-all duration-300 ${getSeverityColor(fix)}`}
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center">
-                          {getSeverityIcon(fix.fix_confidence)}
+                          {getSeverityIcon(fix)}
                           <span className={`ml-3 font-bold capitalize text-lg ${
-                            fix.fix_confidence === 'HIGH' ? 'text-red-800' : 
-                            fix.fix_confidence === 'MEDIUM' ? 'text-orange-800' : 
-                            fix.fix_confidence === 'LOW' ? 'text-yellow-800' : 
+                            getSeverityLevel(fix) === 'HIGH' ? 'text-red-800' : 
+                            getSeverityLevel(fix) === 'MEDIUM' ? 'text-orange-800' : 
+                            getSeverityLevel(fix) === 'LOW' ? 'text-yellow-800' : 
                             'text-gray-800'
-                          }`}>{fix.fix_confidence} Confidence</span>
+                          }`}>{getSeverityLevel(fix)} Risk</span>
                           <span className={`ml-3 ${
-                            fix.fix_confidence === 'HIGH' ? 'text-red-900' : 
-                            fix.fix_confidence === 'MEDIUM' ? 'text-orange-900' : 
-                            fix.fix_confidence === 'LOW' ? 'text-yellow-900' : 
+                            getSeverityLevel(fix) === 'HIGH' ? 'text-red-900' : 
+                            getSeverityLevel(fix) === 'MEDIUM' ? 'text-orange-900' : 
+                            getSeverityLevel(fix) === 'LOW' ? 'text-yellow-900' : 
                             'text-gray-900'
                           }`}>•</span>
                           <span className={`ml-3 font-semibold ${
-                            fix.fix_confidence === 'HIGH' ? 'text-red-700' : 
-                            fix.fix_confidence === 'MEDIUM' ? 'text-orange-700' : 
-                            fix.fix_confidence === 'LOW' ? 'text-yellow-700' : 
+                            getSeverityLevel(fix) === 'HIGH' ? 'text-red-700' : 
+                            getSeverityLevel(fix) === 'MEDIUM' ? 'text-orange-700' : 
+                            getSeverityLevel(fix) === 'LOW' ? 'text-yellow-700' : 
                             'text-gray-700'
                           }`}>{fix.vulnerability_type}</span>
                         </div>
@@ -517,10 +647,18 @@ def login():
                           >
                             <Copy className="w-4 h-4 text-gray-600" />
                           </button>
+                          <span className={`text-xs font-medium px-3 py-1 rounded-full inline-flex items-center justify-center ${
+                            normalizeConfidence(fix.fix_confidence) === 'HIGH' ? 'bg-green-100 text-green-800' : 
+                            normalizeConfidence(fix.fix_confidence) === 'MEDIUM' ? 'bg-blue-100 text-blue-800' : 
+                            normalizeConfidence(fix.fix_confidence) === 'LOW' ? 'bg-gray-100 text-gray-800' : 
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {normalizeConfidence(fix.fix_confidence)} Confidence
+                          </span>
                           {fix.breaking_changes && (
-                            <div className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
+                            <span className="bg-red-100 text-red-800 text-xs font-medium px-3 py-1 rounded-full inline-flex items-center justify-center">
                               Breaking Changes
-                            </div>
+                            </span>
                           )}
                         </div>
                       </div>
@@ -566,7 +704,7 @@ def login():
                         <div className="mb-4 p-3 bg-purple-50 rounded-lg">
                           <strong className="text-purple-800">Additional Imports Required:</strong>
                           <ul className="mt-1 text-sm text-purple-700">
-                            {fix.additional_imports.map((imp, idx) => (
+                            {fix.additional_imports.map((imp: string, idx: number) => (
                               <li key={idx} className="font-mono">• {imp}</li>
                             ))}
                           </ul>
@@ -578,7 +716,7 @@ def login():
                         <div className="mb-4 p-3 bg-green-50 rounded-lg">
                           <strong className="text-green-800">Testing Recommendations:</strong>
                           <ul className="mt-1 text-sm text-green-700 space-y-1">
-                            {fix.testing_recommendations.map((test, idx) => (
+                            {fix.testing_recommendations.map((test: string, idx: number) => (
                               <li key={idx}>• {test}</li>
                             ))}
                           </ul>
@@ -589,15 +727,15 @@ def login():
                       {fix.alternative_solutions.length > 0 && (
                         <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
                           <strong className="text-yellow-800">Alternative Solutions:</strong>
-                          {fix.alternative_solutions.map((alt, idx) => (
+                          {fix.alternative_solutions.map((alt: any, idx: number) => (
                             <div key={idx} className="mt-2 text-sm">
                               <div className="font-medium text-yellow-800">{alt.approach}</div>
                               <div className="ml-4 mt-1">
                                 <div className="text-green-700">
-                                  <strong>Pros:</strong> {alt.pros.join(', ')}
+                                  <strong>Pros:</strong> {(alt.pros || []).join(', ')}
                                 </div>
                                 <div className="text-red-700">
-                                  <strong>Cons:</strong> {alt.cons.join(', ')}
+                                  <strong>Cons:</strong> {(alt.cons || []).join(', ')}
                                 </div>
                               </div>
                             </div>
@@ -609,7 +747,7 @@ def login():
                       {fix.configuration_changes.length > 0 && (
                         <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
                           <strong className="text-indigo-800">Configuration Changes:</strong>
-                          {fix.configuration_changes.map((config, idx) => (
+                          {fix.configuration_changes.map((config: any, idx: number) => (
                             <div key={idx} className="mt-2 text-sm">
                               <div className="font-medium text-indigo-800">File: {config.file}</div>
                               <div className="text-indigo-700">{config.change}</div>
@@ -625,7 +763,7 @@ def login():
             )}
 
             {/* Implementation Guide */}
-            {result.data && (
+            {resultData?.data && (
               <div className="glass-strong rounded-2xl p-8 mb-6">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                   <Settings className="w-6 h-6 mr-2" />
@@ -637,22 +775,22 @@ def login():
                   <h4 className="text-lg font-bold text-blue-900 mb-3">Summary</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{result.data.fix_summary.total_fixes}</div>
+                      <div className="text-2xl font-bold text-blue-600">{resultData.data.fix_summary?.total_fixes || 0}</div>
                       <div className="text-blue-700">Total Fixes</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{result.data.fix_summary.files_modified}</div>
+                      <div className="text-2xl font-bold text-green-600">{resultData.data.fix_summary?.files_modified || 0}</div>
                       <div className="text-green-700">Files Modified</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{result.data.fix_summary.breaking_changes_count}</div>
+                      <div className="text-2xl font-bold text-orange-600">{resultData.data.fix_summary?.breaking_changes_count || 0}</div>
                       <div className="text-orange-700">Breaking Changes</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-purple-600">
                         <Clock className="w-5 h-5 inline" />
                       </div>
-                      <div className="text-purple-700">{result.data.fix_summary.estimated_fix_time}</div>
+                      <div className="text-purple-700">{resultData.data.fix_summary?.estimated_fix_time || '~2 hours'}</div>
                     </div>
                   </div>
                 </div>
@@ -661,7 +799,7 @@ def login():
                 <div className="mb-6">
                   <h4 className="text-lg font-bold text-gray-900 mb-3">Priority Order</h4>
                   <div className="space-y-2">
-                    {result.data.fix_summary.priority_order.map((file, index) => (
+                    {(resultData.data.fix_summary?.priority_order || []).map((file: string, index: number) => (
                       <div key={index} className="flex items-center p-2 bg-gray-50 rounded">
                         <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3">
                           {index + 1}
@@ -676,7 +814,7 @@ def login():
                 <div className="mb-6">
                   <h4 className="text-lg font-bold text-gray-900 mb-3">Prerequisites</h4>
                   <ul className="list-disc list-inside text-gray-700 space-y-1 bg-gray-50 p-4 rounded-lg">
-                    {result.data.implementation_guide.prerequisites.map((prerequisite, index) => (
+                    {(resultData.data.implementation_guide?.prerequisites || []).map((prerequisite: string, index: number) => (
                       <li key={index}>{prerequisite}</li>
                     ))}
                   </ul>
@@ -686,7 +824,7 @@ def login():
                 <div className="mb-6">
                   <h4 className="text-lg font-bold text-gray-900 mb-3">Deployment Steps</h4>
                   <div className="space-y-4">
-                    {result.data.implementation_guide.deployment_steps.map((step, index) => (
+                    {(resultData.data.implementation_guide?.deployment_steps || []).map((step: any, index: number) => (
                       <div key={index} className="border-l-4 border-l-green-500 border border-gray-200 rounded-lg p-4 bg-white shadow-sm" style={{ maxWidth: '100%', overflow: 'hidden' }}>
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-start">
@@ -728,7 +866,7 @@ def login():
                 <div className="mb-6">
                   <h4 className="text-lg font-bold text-gray-900 mb-3">Rollback Plan</h4>
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-800">{result.data.implementation_guide.rollback_plan}</p>
+                    <p className="text-red-800">{resultData.data.implementation_guide?.rollback_plan || 'Restore from backup'}</p>
                   </div>
                 </div>
 
@@ -736,7 +874,7 @@ def login():
                 <div className="mb-6">
                   <h4 className="text-lg font-bold text-gray-900 mb-3">Monitoring Recommendations</h4>
                   <ul className="list-disc list-inside text-gray-700 space-y-1 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    {result.data.implementation_guide.monitoring_recommendations.map((recommendation, index) => (
+                    {(resultData.data.implementation_guide?.monitoring_recommendations || []).map((recommendation: string, index: number) => (
                       <li key={index}>{recommendation}</li>
                     ))}
                   </ul>
@@ -745,7 +883,7 @@ def login():
             )}
 
             {/* Pull Request */}
-            {result.pullRequest && result.pullRequest.created && (
+            {resultData.pullRequest && resultData.pullRequest.created && (
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-xl mb-6 border-2 border-blue-200">
                 <div className="flex items-center gap-3 mb-3">
                   <GitBranch className="w-6 h-6 text-blue-600" />
@@ -756,7 +894,7 @@ def login():
                 </p>
                 <div className="flex gap-3">
                   <a
-                    href={result.pullRequest.url}
+                    href={resultData.pullRequest.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover-lift inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
@@ -765,7 +903,7 @@ def login():
                     View Pull Request
                   </a>
                   <button
-                    onClick={() => navigator.clipboard.writeText(result.pullRequest?.url || '')}
+                    onClick={() => navigator.clipboard.writeText(resultData.pullRequest?.url || '')}
                     className="hover-lift inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors duration-200"
                   >
                     <Copy className="w-4 h-4" />
