@@ -1,27 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { Github, AlertTriangle, CheckCircle, Copy, ExternalLink, GitBranch } from 'lucide-react';
+import { Github, AlertTriangle, CheckCircle, Copy, ExternalLink, GitBranch, FileText, Shield, Clock, Settings } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-interface SecurityIssue {
+interface SecurityFix {
+  file_path: string;
+  vulnerability_type: string;
+  fixed_code: string;
+  explanation: string;
+  security_notes: string;
+  fix_confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  additional_imports: string[];
+  testing_recommendations: string[];
+  breaking_changes: boolean;
+  alternative_solutions: Array<{
+    approach: string;
+    pros: string[];
+    cons: string[];
+  }>;
+  configuration_changes: Array<{
+    file: string;
+    change: string;
+    example: string;
+  }>;
+}
+
+interface FixSummary {
+  total_fixes: number;
+  files_modified: number;
+  high_confidence_fixes: number;
+  medium_confidence_fixes: number;
+  low_confidence_fixes: number;
+  breaking_changes_count: number;
+  estimated_fix_time: string;
+  priority_order: string[];
+}
+
+interface DeploymentStep {
+  step: number;
+  action: string;
+  command: string;
+  verification: string;
+}
+
+interface ImplementationGuide {
+  prerequisites: string[];
+  deployment_steps: DeploymentStep[];
+  rollback_plan: string;
+  monitoring_recommendations: string[];
+}
+
+interface VellumAnalysisResult {
   type: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  title: string;
   description: string;
-  file: string;
-  line?: number;
-  recommendation: string;
+  fixes: SecurityFix[];
+  fix_summary: FixSummary;
+  implementation_guide: ImplementationGuide;
 }
 
 interface AnalysisResult {
   status: 'success' | 'error';
-  issues: SecurityIssue[];
-  summary: {
-    total: number;
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-  };
+  data?: VellumAnalysisResult;
   repository?: string;
   filesAnalyzed?: number;
   pullRequest?: {
@@ -42,66 +82,210 @@ function Results() {
   // Get data from navigation state
   const { analysisResult, repoUrl } = location.state || {};
 
-  // Sample issues for demonstration purposes
-  const sampleIssues = [
-    {
-      severity: 'critical',
-      type: 'Remote Code Execution',
-      description: 'Vulnerable dependency allows remote code execution through unvalidated user input.',
-      file: 'src/server/api.js',
-      line: 42,
-      recommendation: 'Update the vulnerable dependency to the latest version and implement input validation.'
-    },
-    {
-      severity: 'high',
-      type: 'SQL Injection',
-      description: 'User input is directly concatenated into SQL queries without proper sanitization.',
-      file: 'src/database/queries.js',
-      line: 78,
-      recommendation: 'Use parameterized queries or prepared statements to prevent SQL injection attacks.'
-    },
-    {
-      severity: 'medium',
-      type: 'XSS Vulnerability',
-      description: 'User input is rendered directly to the DOM without sanitization.',
-      file: 'src/routes/user.js',
-      line: 18,
-      recommendation: 'Implement input validation and output encoding to prevent cross-site scripting attacks.'
-    },
-    {
-      severity: 'low',
-      type: 'Insecure Cookie',
-      description: 'Cookies are set without the secure flag, allowing transmission over unencrypted connections.',
-      file: 'src/auth/session.js',
-      line: 56,
-      recommendation: 'Set the secure flag on all cookies to ensure they are only transmitted over HTTPS.'
-    }
-  ];
+  // Sample Vellum response data for testing
+  const sampleVellumData: VellumAnalysisResult = {
+    type: "object",
+    title: "Security Fix Generator Output",
+    description: "Output schema for the security fix generation block",
+    fixes: [
+      {
+        file_path: "web1/index.html",
+        vulnerability_type: "INFORMATION_DISCLOSURE",
+        fixed_code: `<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to Web-1</title>
+    <!-- SECURITY: The secret flag has been removed from the client side. Never expose
+         secrets in frontend resources – deliver them via authenticated, server-side
+         APIs if they must be displayed at all. -->
+</head>
+<body>
+    <h1>Welcome!</h1>
+    <p>If you have an account please login to view your dashboard.</p>
+</body>
+</html>`,
+        explanation: "Removed the hard-coded FLAG value that was previously visible to every visitor. Keeping the file 100% static preserves original presentation while eliminating information disclosure.",
+        security_notes: "Secrets should be delivered only after successful authentication and authorisation. If they are user-specific, consider token-based APIs or server-side templating with proper access control.",
+        fix_confidence: "HIGH",
+        additional_imports: [],
+        testing_recommendations: [
+          "Load /index.html in a browser and ensure the flag no longer appears.",
+          "Search entire repository for remnants of the FLAG value."
+        ],
+        breaking_changes: false,
+        alternative_solutions: [],
+        configuration_changes: []
+      },
+      {
+        file_path: "web2/exec/app.py",
+        vulnerability_type: "CODE_INJECTION",
+        fixed_code: `import os
+import ast
+import operator as op
+from flask import Flask, request, render_template, abort
 
-  // Use example data if no real data is provided
+app = Flask(__name__)
+
+# Safe evaluator – replaces the previous exec/eval calls
+_ALLOWED_OPS = {
+    ast.Add: op.add,
+    ast.Sub: op.sub,
+    ast.Mult: op.mul,
+    ast.Div: op.truediv,
+}
+
+def _safe_eval(expr: str):
+    """Safely evaluate an arithmetic expression without exec/eval."""
+    if len(expr) > 100:
+        raise ValueError("Expression too long")
+    
+    tree = ast.parse(expr, mode="eval")
+    # ... implementation details
+    
+@app.route("/", methods=["GET", "POST"])
+def index():
+    result = None
+    expr = ""
+    if request.method == "POST":
+        expr = request.form.get("expression", "").strip()
+        try:
+            result = _safe_eval(expr)
+        except Exception as exc:
+            abort(400, description=f"Invalid expression: {exc}")
+    
+    return render_template("index.html", result=result, expr=expr)`,
+        explanation: "The vulnerable exec() call has been replaced with a strict AST-based arithmetic evaluator that only supports numeric literals and basic operators. This prevents arbitrary code execution while preserving original functionality.",
+        security_notes: "• Added length limit to mitigate DoS.\n• Flask debug mode disabled.\n• No globals are exposed to the expression evaluator.",
+        fix_confidence: "HIGH",
+        additional_imports: ["ast", "operator"],
+        testing_recommendations: [
+          "Submit harmless expressions (e.g. 1+2*3) and verify correct result.",
+          "Try to submit malicious payloads like `__import__('os').system('id')` and verify they are rejected with 400."
+        ],
+        breaking_changes: false,
+        alternative_solutions: [
+          {
+            approach: "Use a third-party sandboxed evaluator such as `simpleeval` or `asteval`.",
+            pros: [
+              "Reduced maintenance.",
+              "More mathematical functions supported."
+            ],
+            cons: [
+              "Adds external dependency.",
+              "Still requires careful configuration to remain secure."
+            ]
+          }
+        ],
+        configuration_changes: []
+      },
+      {
+        file_path: "web5/dist/app.py",
+        vulnerability_type: "SQL_INJECTION",
+        fixed_code: `import os
+import sqlite3
+import hashlib
+from flask import Flask, request, render_template, redirect, url_for, session, g, abort
+
+DATABASE = os.getenv("DB_PATH", "db.sqlite3")
+app = Flask(__name__)
+app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET", os.urandom(32))
+
+@app.route("/", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        user = request.form.get("username", "")
+        pw   = request.form.get("password", "")
+        cur = get_db().execute(
+            "SELECT id FROM users WHERE username=? AND password_hash=?",
+            (user, _hash_pw(pw))
+        )
+        row = cur.fetchone()
+        if row:
+            session["uid"] = row["id"]
+            return redirect(url_for("dashboard"))
+        abort(401, "Invalid credentials")
+    return render_template("index.html")`,
+        explanation: "Replaced dangerous f-string SQL concatenation with parameterised ? placeholders, completely eliminating SQL injection possibilities.",
+        security_notes: "Passwords are now hashed; consider using `passlib` with bcrypt for production-grade hashing.",
+        fix_confidence: "HIGH",
+        additional_imports: ["hashlib"],
+        testing_recommendations: [
+          "Login with valid credentials – success.",
+          "Attempt `' OR 1=1--` injection – expect authentication failure."
+        ],
+        breaking_changes: false,
+        alternative_solutions: [],
+        configuration_changes: []
+      }
+    ],
+    fix_summary: {
+      total_fixes: 3,
+      files_modified: 3,
+      high_confidence_fixes: 3,
+      medium_confidence_fixes: 0,
+      low_confidence_fixes: 0,
+      breaking_changes_count: 0,
+      estimated_fix_time: "1.5 – 2 hours including testing",
+      priority_order: [
+        "web2/exec/app.py",
+        "web5/dist/app.py", 
+        "web1/index.html"
+      ]
+    },
+    implementation_guide: {
+      prerequisites: [
+        "Python 3.9+ and PHP 8.0+ installed",
+        "Docker / Docker-Compose installed for containerised apps",
+        "Access to environment-variable management (CI/CD secrets)"
+      ],
+      deployment_steps: [
+        {
+          step: 1,
+          action: "Commit code changes to a feature branch and push.",
+          command: "git checkout -b security/fixes && git add . && git commit -m \"Apply security patches\"",
+          verification: "CI pipeline runs unit-tests and linting without errors."
+        },
+        {
+          step: 2,
+          action: "Create .env files or secret store entries for removed hard-coded values.",
+          command: "echo 'FLASK_SECRET=$(openssl rand -hex 32)' >> .env",
+          verification: "Secrets are NOT committed to VCS."
+        },
+        {
+          step: 3,
+          action: "Build and start containers.",
+          command: "docker compose up --build -d",
+          verification: "`docker compose ps` shows healthy services."
+        }
+      ],
+      rollback_plan: "Revert to previous git tag (e.g. `git checkout v1.0.3`) and redeploy containers from that tag. Restore DB from last backup if schema changed.",
+      monitoring_recommendations: [
+        "Application error rates (5xx) after deployment",
+        "Authentication failure counts (should not spike)",
+        "DB query logs for injection attempts",
+        "Container/environment variable leakage scans"
+      ]
+    }
+  };
+
+  // Use real data if available, otherwise use sample data
   const result: AnalysisResult = analysisResult || {
     status: 'success',
-    repoName: 'example/repo',
-    branch: 'main',
-    issues: sampleIssues,
-    summary: {
-      total: sampleIssues.length,
-      critical: sampleIssues.filter(issue => issue.severity === 'critical').length,
-      high: sampleIssues.filter(issue => issue.severity === 'high').length,
-      medium: sampleIssues.filter(issue => issue.severity === 'medium').length,
-      low: sampleIssues.filter(issue => issue.severity === 'low').length
-    },
+    data: sampleVellumData,
+    repository: 'example/security-repo',
+    filesAnalyzed: 10,
     pullRequest: {
       created: true,
-      url: 'https://github.com/example/repo/pull/1',
+      url: 'https://github.com/example/security-repo/pull/1',
       number: 1
     }
   };
 
-  // Debug log to check if issues are properly set
-  console.log('Sample Issues:', sampleIssues);
-  console.log('Result Issues:', result.issues);
-  console.log('Summary:', result.summary);
+  // Debug log to check if data is properly set
+  console.log('Sample Vellum Data:', sampleVellumData);
+  console.log('Result Data:', result.data);
+  console.log('Fix Summary:', result.data?.fix_summary);
 
   useEffect(() => {
     // If no data was passed, redirect to home
@@ -116,10 +300,10 @@ function Results() {
     }
 
     // Show confetti if no issues found
-    if (result.issues.length === 0) {
+    if (result.data && result.data.fixes.length === 0) {
       triggerConfetti();
     }
-  }, [location.state, analysisResult, navigate, result.issues.length]);
+  }, [location.state, analysisResult, navigate, result.data?.fixes.length]);
 
   const triggerConfetti = () => {
     setShowConfetti(true);
@@ -153,34 +337,29 @@ function Results() {
     setTimeout(checkStatus, 3000);
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return 'border-red-500 bg-red-50';
-      case 'high':
-        return 'border-orange-500 bg-orange-50';
-      case 'medium':
-        return 'border-yellow-500 bg-yellow-50';
-      case 'low':
-        return 'border-blue-500 bg-blue-50';
+  const getSeverityColor = (confidence: string) => {
+    switch (confidence) {
+      case 'HIGH':
+        return 'border-red-300 bg-red-50';
+      case 'MEDIUM':
+        return 'border-orange-300 bg-orange-50';
+      case 'LOW':
+        return 'border-yellow-300 bg-yellow-50';
       default:
-        return 'border-gray-500 bg-gray-50';
+        return 'border-gray-300 bg-gray-50';
     }
   };
 
-  const getSeverityIcon = (severity: string) => {
-    const iconClass = "w-4 h-4";
-    switch (severity) {
-      case 'critical':
-        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(14%) sepia(93%) saturate(7471%) hue-rotate(3deg) brightness(90%) contrast(114%)'}} />;
-      case 'high':
-        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(25%) sepia(90%) saturate(4000%) hue-rotate(15deg) brightness(90%) contrast(100%)'}} />;
-      case 'medium':
-        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(30%) sepia(90%) saturate(1500%) hue-rotate(35deg) brightness(90%) contrast(100%)'}} />;
-      case 'low':
-        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(20%) sepia(60%) saturate(1000%) hue-rotate(180deg) brightness(90%) contrast(100%)'}} />;
+  const getSeverityIcon = (confidence: string) => {
+    switch (confidence) {
+      case 'HIGH':
+        return <AlertTriangle className="w-6 h-6 text-red-600" />;
+      case 'MEDIUM':
+        return <AlertTriangle className="w-6 h-6 text-orange-600" />;
+      case 'LOW':
+        return <AlertTriangle className="w-6 h-6 text-yellow-600" />;
       default:
-        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(30%) sepia(10%) saturate(500%) hue-rotate(180deg) brightness(90%) contrast(90%)'}} />;
+        return <CheckCircle className="w-6 h-6 text-gray-600" />;
     }
   };
 
@@ -193,7 +372,7 @@ function Results() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-radial text-white relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-radial text-white relative overflow-x-hidden" style={{ overscrollBehaviorX: 'none', touchAction: 'pan-y' }}>
       {/* Confetti Effect */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50">
@@ -273,104 +452,297 @@ function Results() {
           {/* Results Content */}
           <div className="space-y-6">
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-              <div className="glass-strong p-6 rounded-xl text-center hover-lift">
-                <div className="text-3xl font-bold text-gray-900">{result.summary.total}</div>
-                <div className="text-sm text-gray-600">Total Issues</div>
+            {result.data && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                <div className="glass-strong p-6 rounded-xl text-center hover-lift">
+                  <div className="text-3xl font-bold text-gray-900">{result.data.fix_summary.total_fixes}</div>
+                  <div className="text-sm text-gray-600">Total Fixes</div>
+                </div>
+                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-red-50 to-red-100">
+                  <div className="text-3xl font-bold text-red-600">{result.data.fix_summary.high_confidence_fixes}</div>
+                  <div className="text-sm text-red-600">High Confidence Fixes</div>
+                </div>
+                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-orange-50 to-orange-100">
+                  <div className="text-3xl font-bold text-orange-600">{result.data.fix_summary.medium_confidence_fixes}</div>
+                  <div className="text-sm text-orange-600">Medium Confidence Fixes</div>
+                </div>
+                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-yellow-50 to-yellow-100">
+                  <div className="text-3xl font-bold text-yellow-600">{result.data.fix_summary.low_confidence_fixes}</div>
+                  <div className="text-sm text-yellow-600">Low Confidence Fixes</div>
+                </div>
+                <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-blue-50 to-blue-100">
+                  <div className="text-3xl font-bold text-blue-600">{result.data.fix_summary.breaking_changes_count}</div>
+                  <div className="text-sm text-blue-600">Breaking Changes</div>
+                </div>
               </div>
-              <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-red-50 to-red-100">
-                <div className="text-3xl font-bold text-red-600">{result.summary.critical}</div>
-                <div className="text-sm text-red-600">Critical</div>
-              </div>
-              <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-orange-50 to-orange-100">
-                <div className="text-3xl font-bold text-orange-600">{result.summary.high}</div>
-                <div className="text-sm text-orange-600">High</div>
-              </div>
-              <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-yellow-50 to-yellow-100">
-                <div className="text-3xl font-bold text-yellow-600">{result.summary.medium}</div>
-                <div className="text-sm text-yellow-600">Medium</div>
-              </div>
-              <div className="glass-strong p-6 rounded-xl text-center hover-lift bg-gradient-to-br from-blue-50 to-blue-100">
-                <div className="text-3xl font-bold text-blue-600">{result.summary.low}</div>
-                <div className="text-sm text-blue-600">Low</div>
-              </div>
-            </div>
+            )}
 
-            {/* Issues */}
-            <div className="glass-strong rounded-2xl p-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Security Issues Found</h3>
-              <div className="space-y-4">
-                {sampleIssues.map((issue, index) => (
-                  <div
-                    key={index}
-                    className={`border-2 rounded-xl p-6 hover-lift transition-all duration-300 ${getSeverityColor(issue.severity)}`}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center">
-                        {getSeverityIcon(issue.severity)}
-                        <span className={`ml-3 font-bold capitalize text-lg ${
-                          issue.severity === 'critical' ? 'text-red-800' : 
-                          issue.severity === 'high' ? 'text-orange-800' : 
-                          issue.severity === 'medium' ? 'text-yellow-800' : 
-                          issue.severity === 'low' ? 'text-blue-800' : 
+            {/* Fixes */}
+            {result.data && (
+              <div className="glass-strong rounded-2xl p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">Security Fixes</h3>
+                <div className="space-y-4">
+                  {result.data.fixes.map((fix, index) => (
+                    <div
+                      key={index}
+                      className={`border-2 rounded-xl p-6 hover-lift transition-all duration-300 ${getSeverityColor(fix.fix_confidence)}`}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center">
+                          {getSeverityIcon(fix.fix_confidence)}
+                          <span className={`ml-3 font-bold capitalize text-lg ${
+                            fix.fix_confidence === 'HIGH' ? 'text-red-800' : 
+                            fix.fix_confidence === 'MEDIUM' ? 'text-orange-800' : 
+                            fix.fix_confidence === 'LOW' ? 'text-yellow-800' : 
+                            'text-gray-800'
+                          }`}>{fix.fix_confidence} Confidence</span>
+                          <span className={`ml-3 ${
+                            fix.fix_confidence === 'HIGH' ? 'text-red-900' : 
+                            fix.fix_confidence === 'MEDIUM' ? 'text-orange-900' : 
+                            fix.fix_confidence === 'LOW' ? 'text-yellow-900' : 
+                            'text-gray-900'
+                          }`}>•</span>
+                          <span className={`ml-3 font-semibold ${
+                            fix.fix_confidence === 'HIGH' ? 'text-red-700' : 
+                            fix.fix_confidence === 'MEDIUM' ? 'text-orange-700' : 
+                            fix.fix_confidence === 'LOW' ? 'text-yellow-700' : 
+                            'text-gray-700'
+                          }`}>{fix.vulnerability_type}</span>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => copyToClipboard(fix.fixed_code)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Copy fixed code"
+                          >
+                            <Copy className="w-4 h-4 text-gray-600" />
+                          </button>
+                          {fix.breaking_changes && (
+                            <div className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
+                              Breaking Changes
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-800 mb-4 text-lg">{fix.explanation}</p>
+                      
+                      <div className="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg">
+                        <FileText className="w-4 h-4 inline mr-2" />
+                        <code className="font-mono">{fix.file_path}</code>
+                      </div>
+
+                      {/* Security Notes */}
+                      {fix.security_notes && (
+                        <div className="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                          <div className="flex items-center mb-2">
+                            <Shield className="w-4 h-4 text-blue-600 mr-2" />
+                            <strong className="text-blue-800">Security Notes:</strong>
+                          </div>
+                          <p className="text-blue-700 text-sm whitespace-pre-line">{fix.security_notes}</p>
+                        </div>
+                      )}
+
+                      {/* Fixed Code */}
+                      <div className={`p-4 rounded-lg mb-4 ${
+                        fix.fix_confidence === 'HIGH' ? 'bg-red-100' : 
+                        fix.fix_confidence === 'MEDIUM' ? 'bg-orange-100' : 
+                        fix.fix_confidence === 'LOW' ? 'bg-yellow-100' : 
+                        'bg-gray-100'
+                      }`}>
+                        <strong className={`${
+                          fix.fix_confidence === 'HIGH' ? 'text-red-800' : 
+                          fix.fix_confidence === 'MEDIUM' ? 'text-orange-800' : 
+                          fix.fix_confidence === 'LOW' ? 'text-yellow-800' : 
                           'text-gray-800'
-                        }`}>{issue.severity}</span>
-                        <span className={`ml-3 ${
-                          issue.severity === 'critical' ? 'text-red-900' : 
-                          issue.severity === 'high' ? 'text-orange-900' : 
-                          issue.severity === 'medium' ? 'text-yellow-900' : 
-                          issue.severity === 'low' ? 'text-blue-900' : 
-                          'text-gray-900'
-                        }`}>•</span>
-                        <span className={`ml-3 font-semibold ${
-                          issue.severity === 'critical' ? 'text-red-700' : 
-                          issue.severity === 'high' ? 'text-orange-700' : 
-                          issue.severity === 'medium' ? 'text-yellow-700' : 
-                          issue.severity === 'low' ? 'text-blue-700' : 
-                          'text-gray-700'
-                        }`}>{issue.type}</span>
+                        }`}>Fixed Code:</strong>
+                        <pre className="mt-2 text-sm bg-white text-gray-900 p-3 rounded border border-gray-300 overflow-x-auto">
+                          <code className="font-mono">{fix.fixed_code}</code>
+                        </pre>
                       </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => copyToClipboard(issue.recommendation)}
-                          className="p-2 hover:bg-white rounded-lg transition-colors"
-                          title="Copy recommendation"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
+
+                      {/* Additional Imports */}
+                      {fix.additional_imports.length > 0 && (
+                        <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+                          <strong className="text-purple-800">Additional Imports Required:</strong>
+                          <ul className="mt-1 text-sm text-purple-700">
+                            {fix.additional_imports.map((imp, idx) => (
+                              <li key={idx} className="font-mono">• {imp}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Testing Recommendations */}
+                      {fix.testing_recommendations.length > 0 && (
+                        <div className="mb-4 p-3 bg-green-50 rounded-lg">
+                          <strong className="text-green-800">Testing Recommendations:</strong>
+                          <ul className="mt-1 text-sm text-green-700 space-y-1">
+                            {fix.testing_recommendations.map((test, idx) => (
+                              <li key={idx}>• {test}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Alternative Solutions */}
+                      {fix.alternative_solutions.length > 0 && (
+                        <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
+                          <strong className="text-yellow-800">Alternative Solutions:</strong>
+                          {fix.alternative_solutions.map((alt, idx) => (
+                            <div key={idx} className="mt-2 text-sm">
+                              <div className="font-medium text-yellow-800">{alt.approach}</div>
+                              <div className="ml-4 mt-1">
+                                <div className="text-green-700">
+                                  <strong>Pros:</strong> {alt.pros.join(', ')}
+                                </div>
+                                <div className="text-red-700">
+                                  <strong>Cons:</strong> {alt.cons.join(', ')}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Configuration Changes */}
+                      {fix.configuration_changes.length > 0 && (
+                        <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
+                          <strong className="text-indigo-800">Configuration Changes:</strong>
+                          {fix.configuration_changes.map((config, idx) => (
+                            <div key={idx} className="mt-2 text-sm">
+                              <div className="font-medium text-indigo-800">File: {config.file}</div>
+                              <div className="text-indigo-700">{config.change}</div>
+                              <code className="text-xs bg-white text-gray-900 p-1 rounded border border-gray-300 font-mono">{config.example}</code>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Implementation Guide */}
+            {result.data && (
+              <div className="glass-strong rounded-2xl p-8 mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                  <Settings className="w-6 h-6 mr-2" />
+                  Implementation Guide
+                </h3>
+                
+                {/* Fix Summary */}
+                <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                  <h4 className="text-lg font-bold text-blue-900 mb-3">Summary</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{result.data.fix_summary.total_fixes}</div>
+                      <div className="text-blue-700">Total Fixes</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{result.data.fix_summary.files_modified}</div>
+                      <div className="text-green-700">Files Modified</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">{result.data.fix_summary.breaking_changes_count}</div>
+                      <div className="text-orange-700">Breaking Changes</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">
+                        <Clock className="w-5 h-5 inline" />
                       </div>
-                    </div>
-                    <p className="text-gray-800 mb-4 text-lg">{issue.description}</p>
-                    <div className="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg">
-                      <code className="font-mono">{issue.file}</code>
-                      {issue.line && <span className="ml-2">Line {issue.line}</span>}
-                    </div>
-                    <div className={`p-4 rounded-lg ${
-                      issue.severity === 'critical' ? 'bg-red-100' : 
-                      issue.severity === 'high' ? 'bg-orange-100' : 
-                      issue.severity === 'medium' ? 'bg-yellow-100' : 
-                      issue.severity === 'low' ? 'bg-blue-100' : 
-                      'bg-gray-100'
-                    }`}>
-                      <strong className={`${
-                        issue.severity === 'critical' ? 'text-red-800' : 
-                        issue.severity === 'high' ? 'text-orange-800' : 
-                        issue.severity === 'medium' ? 'text-yellow-800' : 
-                        issue.severity === 'low' ? 'text-blue-800' : 
-                        'text-gray-800'
-                      }`}>Recommendation:</strong>
-                      <p className={`mt-1 ${
-                        issue.severity === 'critical' ? 'text-red-700' : 
-                        issue.severity === 'high' ? 'text-orange-700' : 
-                        issue.severity === 'medium' ? 'text-yellow-700' : 
-                        issue.severity === 'low' ? 'text-blue-700' : 
-                        'text-gray-700'
-                      }`}>{issue.recommendation}</p>
+                      <div className="text-purple-700">{result.data.fix_summary.estimated_fix_time}</div>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Priority Order */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-bold text-gray-900 mb-3">Priority Order</h4>
+                  <div className="space-y-2">
+                    {result.data.fix_summary.priority_order.map((file, index) => (
+                      <div key={index} className="flex items-center p-2 bg-gray-50 rounded">
+                        <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3">
+                          {index + 1}
+                        </span>
+                        <code className="font-mono text-sm text-gray-800">{file}</code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Prerequisites */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-bold text-gray-900 mb-3">Prerequisites</h4>
+                  <ul className="list-disc list-inside text-gray-700 space-y-1 bg-gray-50 p-4 rounded-lg">
+                    {result.data.implementation_guide.prerequisites.map((prerequisite, index) => (
+                      <li key={index}>{prerequisite}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Deployment Steps */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-bold text-gray-900 mb-3">Deployment Steps</h4>
+                  <div className="space-y-4">
+                    {result.data.implementation_guide.deployment_steps.map((step, index) => (
+                      <div key={index} className="border-l-4 border-l-green-500 border border-gray-200 rounded-lg p-4 bg-white shadow-sm" style={{ maxWidth: '100%', overflow: 'hidden' }}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-start">
+                            <span className="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-3 mt-1 flex-shrink-0">
+                              {step.step}
+                            </span>
+                            <div className="flex-1" style={{ minWidth: 0 }}>
+                              <h5 className="font-semibold text-gray-900 mb-1">{step.action}</h5>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(step.command)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                            title="Copy command"
+                          >
+                            <Copy className="w-4 h-4 text-gray-600" />
+                          </button>
+                        </div>
+                        <div className="ml-11">
+                          <div className="mb-2">
+                            <strong className="text-sm text-gray-700">Command:</strong>
+                            <div className="mt-1 bg-white rounded border border-gray-300 overflow-x-auto" style={{ width: '100%' }}>
+                              <pre className="p-2 text-gray-900 text-sm font-mono whitespace-nowrap m-0">
+                                <code>{step.command}</code>
+                              </pre>
+                            </div>
+                          </div>
+                          <div>
+                            <strong className="text-sm text-gray-700">Verification:</strong>
+                            <p className="text-sm text-gray-600 mt-1">{step.verification}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rollback Plan */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-bold text-gray-900 mb-3">Rollback Plan</h4>
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-800">{result.data.implementation_guide.rollback_plan}</p>
+                  </div>
+                </div>
+
+                {/* Monitoring Recommendations */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-bold text-gray-900 mb-3">Monitoring Recommendations</h4>
+                  <ul className="list-disc list-inside text-gray-700 space-y-1 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    {result.data.implementation_guide.monitoring_recommendations.map((recommendation, index) => (
+                      <li key={index}>{recommendation}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Pull Request */}
             {result.pullRequest && result.pullRequest.created && (
