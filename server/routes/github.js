@@ -1,12 +1,17 @@
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
+const NodeCache = require('node-cache');
 
 /**
  * GitHub API Integration - Simplified to read all file contents
  */
 const GITHUB_BASE_URL = 'https://api.github.com';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
+// Create a cache with TTL of 1 hour (3600 seconds)
+const repoCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
+const prStatusCache = new NodeCache({ stdTTL: 600, checkperiod: 60 }); // 10 minutes TTL for PR status
 
 /**
  * Helper function to parse GitHub URL and extract owner/repo
@@ -36,6 +41,7 @@ function parseGitHubUrl(url) {
  */
 async function getAllFileContents(owner, repo, path = '', branch = 'main') {
   const files = [];
+  const relevantExtensions = ['js', 'ts', 'py', 'java', 'php', 'go', 'rb', 'cs', 'cpp', 'c'];
   
   try {
     let url = `${GITHUB_BASE_URL}/repos/${owner}/${repo}/contents`;
@@ -53,32 +59,72 @@ async function getAllFileContents(owner, repo, path = '', branch = 'main') {
     });
 
     const items = Array.isArray(response.data) ? response.data : [response.data];
-
-    for (const item of items) {
+    
+    // Process all items in parallel instead of sequentially
+    const itemPromises = items.map(async (item) => {
       if (item.type === 'file') {
-        // Fetch file content
-        const fileResponse = await axios.get(item.url, {
-          headers: {
-            'Authorization': `Bearer ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'HackThe6ix-Backend'
-          }
-        });
+        // Check if file is relevant for security analysis before fetching content
+        const ext = item.name.split('.').pop()?.toLowerCase();
+        
+        if (!relevantExtensions.includes(ext)) {
+          // Skip content fetching for non-relevant files
+          return {
+            path: item.path,
+            name: item.name,
+            size: item.size,
+            content: '', // Skip content for non-relevant files
+            sha: item.sha,
+            url: item.html_url
+          };
+        }
+        
+        // Fetch file content only for relevant files
+        try {
+          const fileResponse = await axios.get(item.url, {
+            headers: {
+              'Authorization': `Bearer ${GITHUB_TOKEN}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'User-Agent': 'HackThe6ix-Backend'
+            }
+          });
 
-        files.push({
-          path: item.path,
-          name: item.name,
-          size: item.size,
-          content: Buffer.from(fileResponse.data.content, 'base64').toString('utf-8'),
-          sha: item.sha,
-          url: item.html_url
-        });
+          return {
+            path: item.path,
+            name: item.name,
+            size: item.size,
+            content: Buffer.from(fileResponse.data.content, 'base64').toString('utf-8'),
+            sha: item.sha,
+            url: item.html_url
+          };
+        } catch (fileError) {
+          console.error(`Error fetching file ${item.path}:`, fileError.message);
+          return {
+            path: item.path,
+            name: item.name,
+            size: item.size,
+            content: '', // Return empty content on error
+            sha: item.sha,
+            url: item.html_url
+          };
+        }
       } else if (item.type === 'dir') {
         // Recursively fetch directory contents
-        const subFiles = await getAllFileContents(owner, repo, item.path, branch);
-        files.push(...subFiles);
+        return getAllFileContents(owner, repo, item.path, branch);
       }
-    }
+      return [];
+    });
+    
+    // Wait for all promises to resolve
+    const results = await Promise.all(itemPromises);
+    
+    // Flatten the results array and add to files
+    results.forEach(result => {
+      if (Array.isArray(result)) {
+        files.push(...result);
+      } else if (result) {
+        files.push(result);
+      }
+    });
   } catch (error) {
     console.error(`Error fetching contents for path ${path}:`, error.message);
     // Continue with other files even if one fails
@@ -105,6 +151,13 @@ router.post('/analyze', async (req, res) => {
 
     // Parse GitHub URL
     const { owner, repo } = parseGitHubUrl(repoUrl);
+
+    // Check cache for existing analysis results
+    const cacheKey = `analysis-${owner}-${repo}`;
+    const cachedResult = repoCache.get(cacheKey);
+    if (cachedResult) {
+      return res.json(cachedResult);
+    }
 
     // Step 1: Fetch all files from GitHub
     const filesResponse = await getAllFileContents(owner, repo);
@@ -282,18 +335,12 @@ ${mockSecurityIssues.map((issue, index) => `
         const prResponse = await axios.post(
           `https://api.github.com/repos/${owner}/${repo}/pulls`,
           {
-            title: `🔒 Security Analysis Report - ${mockSecurityIssues.length} Issues Found`,
-            body: `## 🔒 Automated Security Analysis by Patchy
+            title: '🔒 Security Analysis by Patchy',
+            body: `## 🔒 Comprehensive Security Analysis
 
-**Patchy** has analyzed your repository and found **${mockSecurityIssues.length} security issues** that need attention.
+### 🛡️ Security Report
+${mockSecurityIssues.length > 0 ? `We found ${mockSecurityIssues.length} potential security issues in your repository:` : 'Great news! No security issues were found in your repository.'}
 
-### 📊 Summary
-- **Critical:** ${summary.critical} issues
-- **High:** ${summary.high} issues  
-- **Medium:** ${summary.medium} issues
-- **Low:** ${summary.low} issues
-
-### 📋 Issues Found
 ${mockSecurityIssues.map((issue, index) => `
 ${index + 1}. **${issue.type}** (${issue.severity.toUpperCase()}) in \`${issue.file}\`
    - ${issue.description}
@@ -346,14 +393,18 @@ ${index + 1}. **${issue.type}** (${issue.severity.toUpperCase()}) in \`${issue.f
       }
     }
 
-    res.json({
+    // Cache the analysis results
+    const analysisResult = {
       status: 'success',
       issues: mockSecurityIssues,
       summary,
       repository: repoUrl,
       filesAnalyzed: relevantFiles.length,
       pullRequest: pullRequestInfo
-    });
+    };
+    repoCache.set(cacheKey, analysisResult);
+
+    res.json(analysisResult);
 
   } catch (error) {
     console.error('Analysis Error:', error.message);

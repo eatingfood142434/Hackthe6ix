@@ -2,8 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global styles to prevent white space when scrolling */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  background-color: #000000;
+}
+
+body {
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .bg-gradient-radial {
   background: radial-gradient(circle at center, #244862, #0e172e, #000000);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 /* Glass Morphism Effects */
@@ -19,19 +46,22 @@
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* Floating Animation */
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+/* Simple Hover Effects */
+.hover-lift {
+  transition: all 0.3s ease;
 }
 
-.float {
-  animation: float 3s ease-in-out infinite;
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
 
-.float-delay {
-  animation: float 3s ease-in-out infinite;
-  animation-delay: 1s;
+.float-on-hover {
+  transition: transform 0.3s ease;
+}
+
+.float-on-hover:hover {
+  transform: translateY(-5px);
 }
 
 /* Pulse Animation */
@@ -132,16 +162,6 @@
 
 .btn-interactive:hover::before {
   left: 100%;
-}
-
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f9fafb;
 }
 
 code {
