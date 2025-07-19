@@ -161,4 +161,85 @@ router.post('/read-all-files', async (req, res) => {
   }
 });
 
+/**
+ * Analyze GitHub repository for security issues
+ * POST /api/github/analyze
+ * Body: { "repoUrl": "https://github.com/owner/repo" }
+ */
+router.post('/analyze', async (req, res) => {
+  try {
+    const { repoUrl } = req.body;
+
+    if (!repoUrl) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'GitHub repository URL is required'
+      });
+    }
+
+    // Step 1: Fetch all files from GitHub
+    const filesResponse = await getAllFileContents(
+      ...Object.values(parseGitHubUrl(repoUrl))
+    );
+
+    // Step 2: Filter relevant files for security analysis
+    const relevantFiles = filesResponse.filter(file => {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      return ['js', 'ts', 'py', 'java', 'php', 'go', 'rb', 'cs', 'cpp', 'c'].includes(ext);
+    });
+
+    // Step 3: Prepare content for Vellum AI analysis
+    const codeContent = relevantFiles.map(file => ({
+      filename: file.path,
+      content: file.content
+    }));
+
+    // Step 4: Call Vellum AI for security analysis (placeholder for now)
+    // TODO: Integrate with your existing Vellum workflow
+    const mockSecurityIssues = [
+      {
+        type: 'SQL Injection',
+        severity: 'high',
+        description: 'Potential SQL injection vulnerability detected',
+        file: 'src/database.js',
+        line: 42,
+        recommendation: 'Use parameterized queries instead of string concatenation'
+      },
+      {
+        type: 'XSS Vulnerability',
+        severity: 'medium',
+        description: 'User input not properly sanitized',
+        file: 'src/routes/user.js',
+        line: 18,
+        recommendation: 'Implement input validation and output encoding'
+      }
+    ];
+
+    // Step 5: Calculate summary
+    const summary = {
+      total: mockSecurityIssues.length,
+      critical: mockSecurityIssues.filter(i => i.severity === 'critical').length,
+      high: mockSecurityIssues.filter(i => i.severity === 'high').length,
+      medium: mockSecurityIssues.filter(i => i.severity === 'medium').length,
+      low: mockSecurityIssues.filter(i => i.severity === 'low').length
+    };
+
+    res.json({
+      status: 'success',
+      issues: mockSecurityIssues,
+      summary,
+      repository: repoUrl,
+      filesAnalyzed: relevantFiles.length
+    });
+
+  } catch (error) {
+    console.error('Analysis Error:', error.message);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to analyze repository',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
