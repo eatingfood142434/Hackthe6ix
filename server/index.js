@@ -6,7 +6,6 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 // Import routes
-const vellumRoutes = require('./routes/vellum');
 const githubRoutes = require('./routes/github');
 const githubSecurityRoutes = require('./routes/github-security-bot');
 const healthRoutes = require('./routes/health');
@@ -46,9 +45,6 @@ app.set('trust proxy', 1);
 // Health check route (no auth required)
 app.use('/health', healthRoutes);
 
-// API routes (with authentication)
-app.use('/api/vellum', validateApiKey, vellumRoutes);
-
 // GitHub routes (no authentication required)
 app.use('/api/github', githubRoutes);
 app.use('/api/github-security', githubSecurityRoutes);
@@ -60,7 +56,6 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/health',
-      vellum: '/api/vellum',
       github: '/api/github'
     }
   });
@@ -89,8 +84,15 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
 });
+
+// Increase timeout for long-running Vellum workflows (10 minutes)
+server.timeout = 600000; // 10 minutes in milliseconds
+server.keepAliveTimeout = 610000; // Slightly longer than timeout
+server.headersTimeout = 620000; // Slightly longer than keepAliveTimeout
+
+console.log('⏱️  Server timeout set to 10 minutes for long-running AI workflows');

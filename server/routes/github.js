@@ -2,7 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const NodeCache = require('node-cache');
-const { processFilesWithVellum } = require('./vellum');
+const {executeVellumWorkflow} = require('./vellum');
 
 /**
  * GitHub API Integration - Simplified to read all file contents
@@ -134,16 +134,15 @@ async function getAllFileContents(owner, repo, path = '', branch = 'main') {
   return files;
 }
 
-/**
- * Analyze GitHub repository for security issues
- * POST /api/github/analyze
- * Body: { "repoUrl": "https://github.com/owner/repo" }
- */
-router.post('/analyze', async (req, res) => {
+router.post('/patch', async (req, res) => {
+  // Extend timeout for this specific endpoint (10 minutes)
+  req.setTimeout(600000);
+  res.setTimeout(600000);
+  
   try {
-    const { repoUrl } = req.body;
+    const { url } = req.body;
 
-    if (!repoUrl) {
+    if (!url) {
       return res.status(400).json({
         status: 'error',
         message: 'GitHub repository URL is required'
@@ -151,15 +150,7 @@ router.post('/analyze', async (req, res) => {
     }
 
     // Parse GitHub URL
-    const { owner, repo } = parseGitHubUrl(repoUrl);
-
-    // Check cache for existing analysis results
-    const cacheKey = `analysis-${owner}-${repo}`;
-    const cachedResult = repoCache.get(cacheKey);
-    if (cachedResult) {
-      return res.json(cachedResult);
-    }
-
+    const { owner, repo } = parseGitHubUrl(url);
     // Step 1: Fetch all files from GitHub
     const filesResponse = await getAllFileContents(owner, repo);
 
@@ -170,240 +161,18 @@ router.post('/analyze', async (req, res) => {
     });
 
     // Step 3: Send content for Vellum AI analysis
-    const result = await processFilesWithVellum(relevantFiles, workflowId);
-
-    // Step 4: Call Vellum AI for security analysis (placeholder for now)
-    // TODO: Integrate with your existing Vellum workflow
-    const mockSecurityIssues = [
-      {
-        type: 'SQL Injection',
-        severity: 'high',
-        description: 'Potential SQL injection vulnerability detected',
-        file: 'src/database.js',
-        line: 42,
-        recommendation: 'Use parameterized queries instead of string concatenation'
-      },
-      {
-        type: 'XSS Vulnerability',
-        severity: 'medium',
-        description: 'User input not properly sanitized',
-        file: 'src/routes/user.js',
-        line: 18,
-        recommendation: 'Implement input validation and output encoding'
+    const result = await executeVellumWorkflow({
+      success: true,
+      data: {
+        repository: `${owner}/${repo}`,
+        branch: 'main',
+        totalFiles: relevantFiles.length,
+        files: relevantFiles
       }
-    ];
-
-    // Step 5: Calculate summary
-    const summary = {
-      total: mockSecurityIssues.length,
-      critical: mockSecurityIssues.filter(i => i.severity === 'critical').length,
-      high: mockSecurityIssues.filter(i => i.severity === 'high').length,
-      medium: mockSecurityIssues.filter(i => i.severity === 'medium').length,
-      low: mockSecurityIssues.filter(i => i.severity === 'low').length
-    };
-
-    // Step 6: Automatically create PR with security fixes if issues found
-    let pullRequestInfo = null;
+    });
     
-    if (mockSecurityIssues.length > 0) {
-      try {
-        console.log(`Creating automated security fix PR for ${owner}/${repo}`);
-        
-        // Fork the repository
-        const forkResponse = await axios.post(
-          `https://api.github.com/repos/${owner}/${repo}/forks`,
-          {},
-          {
-            headers: {
-              'Authorization': `Bearer ${GITHUB_TOKEN}`,
-              'Accept': 'application/vnd.github.v3+json',
-              'User-Agent': 'HackThe6ix-Backend'
-            }
-          }
-        );
-
-        const forkOwner = forkResponse.data.owner.login;
-        const forkName = forkResponse.data.name;
-
-        // Wait for fork to be ready
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Get default branch
-        const repoInfoResponse = await axios.get(
-          `https://api.github.com/repos/${forkOwner}/${forkName}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${GITHUB_TOKEN}`,
-              'Accept': 'application/vnd.github.v3+json',
-              'User-Agent': 'HackThe6ix-Backend'
-            }
-          }
-        );
-
-        const defaultBranch = repoInfoResponse.data.default_branch;
-
-        // Create new branch for security fixes
-        const newBranchName = `patchy-security-fixes-${Date.now()}`;
-        
-        const branchResponse = await axios.get(
-          `https://api.github.com/repos/${forkOwner}/${forkName}/git/refs/heads/${defaultBranch}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${GITHUB_TOKEN}`,
-              'Accept': 'application/vnd.github.v3+json',
-              'User-Agent': 'HackThe6ix-Backend'
-            }
-          }
-        );
-
-        const baseSha = branchResponse.data.object.sha;
-
-        await axios.post(
-          `https://api.github.com/repos/${forkOwner}/${forkName}/git/refs`,
-          {
-            ref: `refs/heads/${newBranchName}`,
-            sha: baseSha
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${GITHUB_TOKEN}`,
-              'Accept': 'application/vnd.github.v3+json',
-              'User-Agent': 'HackThe6ix-Backend'
-            }
-          }
-        );
-
-        // Create security report file
-        const securityReportContent = `# 🔒 Security Analysis Report
-
-## Overview
-This security report was generated by **Patchy** - an automated security vulnerability detection and fixing tool.
-
-## Analysis Results
-- **Repository:** ${owner}/${repo}
-- **Analysis Date:** ${new Date().toISOString()}
-- **Issues Found:** ${mockSecurityIssues.length}
-- **Files Analyzed:** ${relevantFiles.length}
-
-## Security Issues Detected
-
-${mockSecurityIssues.map((issue, index) => `
-### ${index + 1}. ${issue.type} (${issue.severity.toUpperCase()})
-- **File:** \`${issue.file}\`
-- **Line:** ${issue.line}
-- **Description:** ${issue.description}
-- **Recommendation:** ${issue.recommendation}
-`).join('\n')}
-
-## Summary by Severity
-- **Critical:** ${summary.critical}
-- **High:** ${summary.high}
-- **Medium:** ${summary.medium}
-- **Low:** ${summary.low}
-
-## Next Steps
-1. Review each security issue carefully
-2. Implement the recommended fixes
-3. Test your application thoroughly
-4. Consider adding automated security testing to your CI/CD pipeline
-
----
-*🤖 This report was automatically generated by Patchy - Automated Security Analysis Tool*
-*For questions or support, please contact our team.*
-`;
-
-        // Commit the security report
-        await axios.put(
-          `https://api.github.com/repos/${forkOwner}/${forkName}/contents/PATCHY_SECURITY_REPORT.md`,
-          {
-            message: '🔒 Add comprehensive security analysis report',
-            content: Buffer.from(securityReportContent).toString('base64'),
-            branch: newBranchName
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${GITHUB_TOKEN}`,
-              'Accept': 'application/vnd.github.v3+json',
-              'User-Agent': 'HackThe6ix-Backend'
-            }
-          }
-        );
-
-        // Create pull request
-        const prResponse = await axios.post(
-          `https://api.github.com/repos/${owner}/${repo}/pulls`,
-          {
-            title: '🔒 Security Analysis by Patchy',
-            body: `## 🔒 Comprehensive Security Analysis
-
-### 🛡️ Security Report
-${mockSecurityIssues.length > 0 ? `We found ${mockSecurityIssues.length} potential security issues in your repository:` : 'Great news! No security issues were found in your repository.'}
-
-${mockSecurityIssues.map((issue, index) => `
-${index + 1}. **${issue.type}** (${issue.severity.toUpperCase()}) in \`${issue.file}\`
-   - ${issue.description}
-   - **Fix:** ${issue.recommendation}
-`).join('\n')}
-
-### 📄 What's Included
-- **PATCHY_SECURITY_REPORT.md**: Detailed security analysis report
-- Comprehensive breakdown of all security issues
-- Specific recommendations for each vulnerability
-
-### 🚀 Next Steps
-1. Review the detailed report in \`PATCHY_SECURITY_REPORT.md\`
-2. Implement the recommended security fixes
-3. Test your application thoroughly
-4. Merge this PR to keep the security report in your repository
-
----
-*🤖 This PR was automatically created by Patchy - Automated Security Analysis Tool*
-*Keeping your code secure, one repository at a time! 🛡️*`,
-            head: `${forkOwner}:${newBranchName}`,
-            base: defaultBranch
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${GITHUB_TOKEN}`,
-              'Accept': 'application/vnd.github.v3+json',
-              'User-Agent': 'HackThe6ix-Backend'
-            }
-          }
-        );
-
-        pullRequestInfo = {
-          number: prResponse.data.number,
-          title: prResponse.data.title,
-          url: prResponse.data.html_url,
-          state: prResponse.data.state,
-          created: true
-        };
-
-        console.log(`✅ Security PR created successfully: ${pullRequestInfo.url}`);
-
-      } catch (prError) {
-        console.error('PR Creation Error:', prError.response?.data || prError.message);
-        // Don't fail the entire request if PR creation fails
-        pullRequestInfo = {
-          created: false,
-          error: prError.response?.data?.message || prError.message
-        };
-      }
-    }
-
-    // Cache the analysis results
-    const analysisResult = {
-      status: 'success',
-      issues: mockSecurityIssues,
-      summary,
-      repository: repoUrl,
-      filesAnalyzed: relevantFiles.length,
-      pullRequest: pullRequestInfo
-    };
-    repoCache.set(cacheKey, analysisResult);
-
-    res.json(analysisResult);
-
+    // Step 4: Return result
+    res.json(result);
   } catch (error) {
     console.error('Analysis Error:', error.message);
     res.status(500).json({
@@ -413,6 +182,286 @@ ${index + 1}. **${issue.type}** (${issue.severity.toUpperCase()}) in \`${issue.f
     });
   }
 });
+
+/**
+ * Analyze GitHub repository for security issues
+ * POST /api/github/analyze
+ * Body: { "repoUrl": "https://github.com/owner/repo" }
+ */
+// router.post('/analyze', async (req, res) => {
+//   try {
+//     const { repoUrl } = req.body;
+
+//     if (!repoUrl) {
+//       return res.status(400).json({
+//         status: 'error',
+//         message: 'GitHub repository URL is required'
+//       });
+//     }
+
+//     // Parse GitHub URL
+//     const { owner, repo } = parseGitHubUrl(repoUrl);
+
+//     // Check cache for existing analysis results
+//     const cacheKey = `analysis-${owner}-${repo}`;
+//     const cachedResult = repoCache.get(cacheKey);
+//     if (cachedResult) {
+//       return res.json(cachedResult);
+//     }
+
+//     // Step 1: Fetch all files from GitHub
+//     const filesResponse = await getAllFileContents(owner, repo);
+
+//     // Step 2: Filter relevant files for security analysis
+//     const relevantFiles = filesResponse.filter(file => {
+//       const ext = file.name.split('.').pop()?.toLowerCase();
+//       return ['js', 'ts', 'py', 'java', 'php', 'go', 'rb', 'cs', 'cpp', 'c'].includes(ext);
+//     });
+
+//     // Step 3: Send content for Vellum AI analysis
+//     const result = await processFilesWithVellum(relevantFiles, workflowId);
+
+//     // Step 4: Call Vellum AI for security analysis (placeholder for now)
+//     // TODO: Integrate with your existing Vellum workflow
+//     const mockSecurityIssues = [
+//       {
+//         type: 'SQL Injection',
+//         severity: 'high',
+//         description: 'Potential SQL injection vulnerability detected',
+//         file: 'src/database.js',
+//         line: 42,
+//         recommendation: 'Use parameterized queries instead of string concatenation'
+//       },
+//       {
+//         type: 'XSS Vulnerability',
+//         severity: 'medium',
+//         description: 'User input not properly sanitized',
+//         file: 'src/routes/user.js',
+//         line: 18,
+//         recommendation: 'Implement input validation and output encoding'
+//       }
+//     ];
+
+//     // Step 5: Calculate summary
+//     const summary = {
+//       total: mockSecurityIssues.length,
+//       critical: mockSecurityIssues.filter(i => i.severity === 'critical').length,
+//       high: mockSecurityIssues.filter(i => i.severity === 'high').length,
+//       medium: mockSecurityIssues.filter(i => i.severity === 'medium').length,
+//       low: mockSecurityIssues.filter(i => i.severity === 'low').length
+//     };
+
+//     // Step 6: Automatically create PR with security fixes if issues found
+//     let pullRequestInfo = null;
+    
+//     if (mockSecurityIssues.length > 0) {
+//       try {
+//         console.log(`Creating automated security fix PR for ${owner}/${repo}`);
+        
+//         // Fork the repository
+//         const forkResponse = await axios.post(
+//           `https://api.github.com/repos/${owner}/${repo}/forks`,
+//           {},
+//           {
+//             headers: {
+//               'Authorization': `Bearer ${GITHUB_TOKEN}`,
+//               'Accept': 'application/vnd.github.v3+json',
+//               'User-Agent': 'HackThe6ix-Backend'
+//             }
+//           }
+//         );
+
+//         const forkOwner = forkResponse.data.owner.login;
+//         const forkName = forkResponse.data.name;
+
+//         // Wait for fork to be ready
+//         await new Promise(resolve => setTimeout(resolve, 2000));
+
+//         // Get default branch
+//         const repoInfoResponse = await axios.get(
+//           `https://api.github.com/repos/${forkOwner}/${forkName}`,
+//           {
+//             headers: {
+//               'Authorization': `Bearer ${GITHUB_TOKEN}`,
+//               'Accept': 'application/vnd.github.v3+json',
+//               'User-Agent': 'HackThe6ix-Backend'
+//             }
+//           }
+//         );
+
+//         const defaultBranch = repoInfoResponse.data.default_branch;
+
+//         // Create new branch for security fixes
+//         const newBranchName = `patchy-security-fixes-${Date.now()}`;
+        
+//         const branchResponse = await axios.get(
+//           `https://api.github.com/repos/${forkOwner}/${forkName}/git/refs/heads/${defaultBranch}`,
+//           {
+//             headers: {
+//               'Authorization': `Bearer ${GITHUB_TOKEN}`,
+//               'Accept': 'application/vnd.github.v3+json',
+//               'User-Agent': 'HackThe6ix-Backend'
+//             }
+//           }
+//         );
+
+//         const baseSha = branchResponse.data.object.sha;
+
+//         await axios.post(
+//           `https://api.github.com/repos/${forkOwner}/${forkName}/git/refs`,
+//           {
+//             ref: `refs/heads/${newBranchName}`,
+//             sha: baseSha
+//           },
+//           {
+//             headers: {
+//               'Authorization': `Bearer ${GITHUB_TOKEN}`,
+//               'Accept': 'application/vnd.github.v3+json',
+//               'User-Agent': 'HackThe6ix-Backend'
+//             }
+//           }
+//         );
+
+//         // Create security report file
+//         const securityReportContent = `# 🔒 Security Analysis Report
+
+// ## Overview
+// This security report was generated by **Patchy** - an automated security vulnerability detection and fixing tool.
+
+// ## Analysis Results
+// - **Repository:** ${owner}/${repo}
+// - **Analysis Date:** ${new Date().toISOString()}
+// - **Issues Found:** ${mockSecurityIssues.length}
+// - **Files Analyzed:** ${relevantFiles.length}
+
+// ## Security Issues Detected
+
+// ${mockSecurityIssues.map((issue, index) => `
+// ### ${index + 1}. ${issue.type} (${issue.severity.toUpperCase()})
+// - **File:** \`${issue.file}\`
+// - **Line:** ${issue.line}
+// - **Description:** ${issue.description}
+// - **Recommendation:** ${issue.recommendation}
+// `).join('\n')}
+
+// ## Summary by Severity
+// - **Critical:** ${summary.critical}
+// - **High:** ${summary.high}
+// - **Medium:** ${summary.medium}
+// - **Low:** ${summary.low}
+
+// ## Next Steps
+// 1. Review each security issue carefully
+// 2. Implement the recommended fixes
+// 3. Test your application thoroughly
+// 4. Consider adding automated security testing to your CI/CD pipeline
+
+// ---
+// *🤖 This report was automatically generated by Patchy - Automated Security Analysis Tool*
+// *For questions or support, please contact our team.*
+// `;
+
+//         // Commit the security report
+//         await axios.put(
+//           `https://api.github.com/repos/${forkOwner}/${forkName}/contents/PATCHY_SECURITY_REPORT.md`,
+//           {
+//             message: '🔒 Add comprehensive security analysis report',
+//             content: Buffer.from(securityReportContent).toString('base64'),
+//             branch: newBranchName
+//           },
+//           {
+//             headers: {
+//               'Authorization': `Bearer ${GITHUB_TOKEN}`,
+//               'Accept': 'application/vnd.github.v3+json',
+//               'User-Agent': 'HackThe6ix-Backend'
+//             }
+//           }
+//         );
+
+//         // Create pull request
+//         const prResponse = await axios.post(
+//           `https://api.github.com/repos/${owner}/${repo}/pulls`,
+//           {
+//             title: '🔒 Security Analysis by Patchy',
+//             body: `## 🔒 Comprehensive Security Analysis
+
+// ### 🛡️ Security Report
+// ${mockSecurityIssues.length > 0 ? `We found ${mockSecurityIssues.length} potential security issues in your repository:` : 'Great news! No security issues were found in your repository.'}
+
+// ${mockSecurityIssues.map((issue, index) => `
+// ${index + 1}. **${issue.type}** (${issue.severity.toUpperCase()}) in \`${issue.file}\`
+//    - ${issue.description}
+//    - **Fix:** ${issue.recommendation}
+// `).join('\n')}
+
+// ### 📄 What's Included
+// - **PATCHY_SECURITY_REPORT.md**: Detailed security analysis report
+// - Comprehensive breakdown of all security issues
+// - Specific recommendations for each vulnerability
+
+// ### 🚀 Next Steps
+// 1. Review the detailed report in \`PATCHY_SECURITY_REPORT.md\`
+// 2. Implement the recommended security fixes
+// 3. Test your application thoroughly
+// 4. Merge this PR to keep the security report in your repository
+
+// ---
+// *🤖 This PR was automatically created by Patchy - Automated Security Analysis Tool*
+// *Keeping your code secure, one repository at a time! 🛡️*`,
+//             head: `${forkOwner}:${newBranchName}`,
+//             base: defaultBranch
+//           },
+//           {
+//             headers: {
+//               'Authorization': `Bearer ${GITHUB_TOKEN}`,
+//               'Accept': 'application/vnd.github.v3+json',
+//               'User-Agent': 'HackThe6ix-Backend'
+//             }
+//           }
+//         );
+
+//         pullRequestInfo = {
+//           number: prResponse.data.number,
+//           title: prResponse.data.title,
+//           url: prResponse.data.html_url,
+//           state: prResponse.data.state,
+//           created: true
+//         };
+
+//         console.log(`✅ Security PR created successfully: ${pullRequestInfo.url}`);
+
+//       } catch (prError) {
+//         console.error('PR Creation Error:', prError.response?.data || prError.message);
+//         // Don't fail the entire request if PR creation fails
+//         pullRequestInfo = {
+//           created: false,
+//           error: prError.response?.data?.message || prError.message
+//         };
+//       }
+//     }
+
+//     // Cache the analysis results
+//     const analysisResult = {
+//       status: 'success',
+//       issues: mockSecurityIssues,
+//       summary,
+//       repository: repoUrl,
+//       filesAnalyzed: relevantFiles.length,
+//       pullRequest: pullRequestInfo
+//     };
+//     repoCache.set(cacheKey, analysisResult);
+
+//     res.json(analysisResult);
+
+//   } catch (error) {
+//     console.error('Analysis Error:', error.message);
+//     res.status(500).json({
+//       status: 'error',
+//       message: 'Failed to analyze repository',
+//       error: error.message
+//     });
+//   }
+// });
 
 /**
  * Read all file contents from a GitHub repository
