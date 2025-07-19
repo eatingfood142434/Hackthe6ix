@@ -42,56 +42,66 @@ function Results() {
   // Get data from navigation state
   const { analysisResult, repoUrl } = location.state || {};
 
-  // Example issues for demonstration
-  const exampleIssues: SecurityIssue[] = [
+  // Sample issues for demonstration purposes
+  const sampleIssues = [
     {
-      type: "SQL Injection",
-      severity: "critical",
-      description: "Unsanitized user input is directly concatenated into SQL queries, allowing potential SQL injection attacks.",
-      file: "/server/database.js",
+      severity: 'critical',
+      type: 'Remote Code Execution',
+      description: 'Vulnerable dependency allows remote code execution through unvalidated user input.',
+      file: 'src/server/api.js',
       line: 42,
-      recommendation: "Use parameterized queries or prepared statements instead of string concatenation. Consider using an ORM like Sequelize or Prisma for safer database interactions."
+      recommendation: 'Update the vulnerable dependency to the latest version and implement input validation.'
     },
     {
-      type: "Insecure Authentication",
-      severity: "high",
-      description: "Passwords are stored using weak hashing algorithm (MD5) which is vulnerable to rainbow table attacks.",
-      file: "/server/auth/userModel.js",
+      severity: 'high',
+      type: 'SQL Injection',
+      description: 'User input is directly concatenated into SQL queries without proper sanitization.',
+      file: 'src/database/queries.js',
       line: 78,
-      recommendation: "Use bcrypt or Argon2 for password hashing with appropriate salt rounds. Never store passwords in plaintext or with weak hashing algorithms."
+      recommendation: 'Use parameterized queries or prepared statements to prevent SQL injection attacks.'
     },
     {
-      type: "Cross-Site Scripting (XSS)",
-      severity: "medium",
-      description: "User-provided content is rendered directly in the DOM without sanitization, enabling potential XSS attacks.",
-      file: "/frontend/src/components/Comments.jsx",
-      line: 23,
-      recommendation: "Sanitize user input before rendering to the DOM. Consider using DOMPurify or React's built-in XSS protection by avoiding dangerouslySetInnerHTML."
+      severity: 'medium',
+      type: 'XSS Vulnerability',
+      description: 'User input is rendered directly to the DOM without sanitization.',
+      file: 'src/routes/user.js',
+      line: 18,
+      recommendation: 'Implement input validation and output encoding to prevent cross-site scripting attacks.'
     },
     {
-      type: "Outdated Dependency",
-      severity: "low",
-      description: "Using outdated version of axios (0.21.1) with known security vulnerabilities.",
-      file: "/package.json",
-      line: 15,
-      recommendation: "Update axios to the latest version (0.27.2 or newer) to address security vulnerabilities. Regularly audit dependencies with npm audit or similar tools."
+      severity: 'low',
+      type: 'Insecure Cookie',
+      description: 'Cookies are set without the secure flag, allowing transmission over unencrypted connections.',
+      file: 'src/auth/session.js',
+      line: 56,
+      recommendation: 'Set the secure flag on all cookies to ensure they are only transmitted over HTTPS.'
     }
   ];
 
   // Use example data if no real data is provided
   const result: AnalysisResult = analysisResult || {
     status: 'success',
-    issues: exampleIssues,
+    repoName: 'example/repo',
+    branch: 'main',
+    issues: sampleIssues,
     summary: {
-      total: 4,
-      critical: 1,
-      high: 1,
-      medium: 1,
-      low: 1
+      total: sampleIssues.length,
+      critical: sampleIssues.filter(issue => issue.severity === 'critical').length,
+      high: sampleIssues.filter(issue => issue.severity === 'high').length,
+      medium: sampleIssues.filter(issue => issue.severity === 'medium').length,
+      low: sampleIssues.filter(issue => issue.severity === 'low').length
     },
-    repository: repoUrl || 'https://github.com/example/repo',
-    filesAnalyzed: 42
+    pullRequest: {
+      created: true,
+      url: 'https://github.com/example/repo/pull/1',
+      number: 1
+    }
   };
+
+  // Debug log to check if issues are properly set
+  console.log('Sample Issues:', sampleIssues);
+  console.log('Result Issues:', result.issues);
+  console.log('Summary:', result.summary);
 
   useEffect(() => {
     // If no data was passed, redirect to home
@@ -159,15 +169,18 @@ function Results() {
   };
 
   const getSeverityIcon = (severity: string) => {
+    const iconClass = "w-4 h-4";
     switch (severity) {
       case 'critical':
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(14%) sepia(93%) saturate(7471%) hue-rotate(3deg) brightness(90%) contrast(114%)'}} />;
       case 'high':
-        return <AlertTriangle className="w-4 h-4" />;
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(25%) sepia(90%) saturate(4000%) hue-rotate(15deg) brightness(90%) contrast(100%)'}} />;
       case 'medium':
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(30%) sepia(90%) saturate(1500%) hue-rotate(35deg) brightness(90%) contrast(100%)'}} />;
       case 'low':
-        return <img src="/logo.png" alt="Logo" className="w-4 h-4" />;
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(20%) sepia(60%) saturate(1000%) hue-rotate(180deg) brightness(90%) contrast(100%)'}} />;
       default:
-        return <CheckCircle className="w-4 h-4" />;
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(30%) sepia(10%) saturate(500%) hue-rotate(180deg) brightness(90%) contrast(90%)'}} />;
     }
   };
 
@@ -296,9 +309,27 @@ function Results() {
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center">
                           {getSeverityIcon(issue.severity)}
-                          <span className="ml-3 font-bold capitalize text-lg">{issue.severity}</span>
-                          <span className="ml-3 text-gray-400">•</span>
-                          <span className="ml-3 font-semibold">{issue.type}</span>
+                          <span className={`ml-3 font-bold capitalize text-lg ${
+                            issue.severity === 'critical' ? 'text-red-800' : 
+                            issue.severity === 'high' ? 'text-orange-800' : 
+                            issue.severity === 'medium' ? 'text-yellow-800' : 
+                            issue.severity === 'low' ? 'text-blue-800' : 
+                            'text-gray-800'
+                          }`}>{issue.severity}</span>
+                          <span className={`ml-3 ${
+                            issue.severity === 'critical' ? 'text-red-900' : 
+                            issue.severity === 'high' ? 'text-orange-900' : 
+                            issue.severity === 'medium' ? 'text-yellow-900' : 
+                            issue.severity === 'low' ? 'text-blue-900' : 
+                            'text-gray-900'
+                          }`}>•</span>
+                          <span className={`ml-3 font-semibold ${
+                            issue.severity === 'critical' ? 'text-red-700' : 
+                            issue.severity === 'high' ? 'text-orange-700' : 
+                            issue.severity === 'medium' ? 'text-yellow-700' : 
+                            issue.severity === 'low' ? 'text-blue-700' : 
+                            'text-gray-700'
+                          }`}>{issue.type}</span>
                         </div>
                         <div className="flex space-x-2">
                           <button
