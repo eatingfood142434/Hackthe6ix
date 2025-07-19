@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 // Import routes
 const vellumRoutes = require('./routes/vellum');
 const githubRoutes = require('./routes/github');
+const githubSecurityRoutes = require('./routes/github-security-bot');
 const healthRoutes = require('./routes/health');
 
 // Import middleware
@@ -50,6 +51,7 @@ app.use('/api/vellum', validateApiKey, vellumRoutes);
 
 // GitHub routes (no authentication required)
 app.use('/api/github', githubRoutes);
+app.use('/api/github-security', githubSecurityRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
