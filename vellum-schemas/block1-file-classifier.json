@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "FileClassificationOutput",
   "title": "File Classification Output",
   "description": "Output schema for the file classification and filtering block",
   "type": "object",
