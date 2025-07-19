@@ -168,11 +168,8 @@ router.post('/analyze', async (req, res) => {
       return ['js', 'ts', 'py', 'java', 'php', 'go', 'rb', 'cs', 'cpp', 'c'].includes(ext);
     });
 
-    // Step 3: Prepare content for Vellum AI analysis
-    const codeContent = relevantFiles.map(file => ({
-      filename: file.path,
-      content: file.content
-    }));
+    // Step 3: Send content for Vellum AI analysis
+    const result = await processFilesWithVellum(relevantFiles, workflowId);
 
     // Step 4: Call Vellum AI for security analysis (placeholder for now)
     // TODO: Integrate with your existing Vellum workflow

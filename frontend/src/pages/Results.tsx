@@ -42,56 +42,66 @@ function Results() {
   // Get data from navigation state
   const { analysisResult, repoUrl } = location.state || {};
 
-  // Example issues for demonstration
-  const exampleIssues: SecurityIssue[] = [
+  // Sample issues for demonstration purposes
+  const sampleIssues = [
     {
-      type: "SQL Injection",
-      severity: "critical",
-      description: "Unsanitized user input is directly concatenated into SQL queries, allowing potential SQL injection attacks.",
-      file: "/server/database.js",
+      severity: 'critical',
+      type: 'Remote Code Execution',
+      description: 'Vulnerable dependency allows remote code execution through unvalidated user input.',
+      file: 'src/server/api.js',
       line: 42,
-      recommendation: "Use parameterized queries or prepared statements instead of string concatenation. Consider using an ORM like Sequelize or Prisma for safer database interactions."
+      recommendation: 'Update the vulnerable dependency to the latest version and implement input validation.'
     },
     {
-      type: "Insecure Authentication",
-      severity: "high",
-      description: "Passwords are stored using weak hashing algorithm (MD5) which is vulnerable to rainbow table attacks.",
-      file: "/server/auth/userModel.js",
+      severity: 'high',
+      type: 'SQL Injection',
+      description: 'User input is directly concatenated into SQL queries without proper sanitization.',
+      file: 'src/database/queries.js',
       line: 78,
-      recommendation: "Use bcrypt or Argon2 for password hashing with appropriate salt rounds. Never store passwords in plaintext or with weak hashing algorithms."
+      recommendation: 'Use parameterized queries or prepared statements to prevent SQL injection attacks.'
     },
     {
-      type: "Cross-Site Scripting (XSS)",
-      severity: "medium",
-      description: "User-provided content is rendered directly in the DOM without sanitization, enabling potential XSS attacks.",
-      file: "/frontend/src/components/Comments.jsx",
-      line: 23,
-      recommendation: "Sanitize user input before rendering to the DOM. Consider using DOMPurify or React's built-in XSS protection by avoiding dangerouslySetInnerHTML."
+      severity: 'medium',
+      type: 'XSS Vulnerability',
+      description: 'User input is rendered directly to the DOM without sanitization.',
+      file: 'src/routes/user.js',
+      line: 18,
+      recommendation: 'Implement input validation and output encoding to prevent cross-site scripting attacks.'
     },
     {
-      type: "Outdated Dependency",
-      severity: "low",
-      description: "Using outdated version of axios (0.21.1) with known security vulnerabilities.",
-      file: "/package.json",
-      line: 15,
-      recommendation: "Update axios to the latest version (0.27.2 or newer) to address security vulnerabilities. Regularly audit dependencies with npm audit or similar tools."
+      severity: 'low',
+      type: 'Insecure Cookie',
+      description: 'Cookies are set without the secure flag, allowing transmission over unencrypted connections.',
+      file: 'src/auth/session.js',
+      line: 56,
+      recommendation: 'Set the secure flag on all cookies to ensure they are only transmitted over HTTPS.'
     }
   ];
 
   // Use example data if no real data is provided
   const result: AnalysisResult = analysisResult || {
     status: 'success',
-    issues: exampleIssues,
+    repoName: 'example/repo',
+    branch: 'main',
+    issues: sampleIssues,
     summary: {
-      total: 4,
-      critical: 1,
-      high: 1,
-      medium: 1,
-      low: 1
+      total: sampleIssues.length,
+      critical: sampleIssues.filter(issue => issue.severity === 'critical').length,
+      high: sampleIssues.filter(issue => issue.severity === 'high').length,
+      medium: sampleIssues.filter(issue => issue.severity === 'medium').length,
+      low: sampleIssues.filter(issue => issue.severity === 'low').length
     },
-    repository: repoUrl || 'https://github.com/example/repo',
-    filesAnalyzed: 42
+    pullRequest: {
+      created: true,
+      url: 'https://github.com/example/repo/pull/1',
+      number: 1
+    }
   };
+
+  // Debug log to check if issues are properly set
+  console.log('Sample Issues:', sampleIssues);
+  console.log('Result Issues:', result.issues);
+  console.log('Summary:', result.summary);
 
   useEffect(() => {
     // If no data was passed, redirect to home
@@ -159,15 +169,18 @@ function Results() {
   };
 
   const getSeverityIcon = (severity: string) => {
+    const iconClass = "w-4 h-4";
     switch (severity) {
       case 'critical':
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(14%) sepia(93%) saturate(7471%) hue-rotate(3deg) brightness(90%) contrast(114%)'}} />;
       case 'high':
-        return <AlertTriangle className="w-4 h-4" />;
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(25%) sepia(90%) saturate(4000%) hue-rotate(15deg) brightness(90%) contrast(100%)'}} />;
       case 'medium':
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(30%) sepia(90%) saturate(1500%) hue-rotate(35deg) brightness(90%) contrast(100%)'}} />;
       case 'low':
-        return <img src="/logo.png" alt="Logo" className="w-4 h-4" />;
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(20%) sepia(60%) saturate(1000%) hue-rotate(180deg) brightness(90%) contrast(100%)'}} />;
       default:
-        return <CheckCircle className="w-4 h-4" />;
+        return <img src="/logo.png" alt="Logo" className={`${iconClass}`} style={{filter: 'brightness(0) saturate(100%) invert(30%) sepia(10%) saturate(500%) hue-rotate(180deg) brightness(90%) contrast(90%)'}} />;
     }
   };
 
@@ -203,7 +216,7 @@ function Results() {
           
           {/* Header */}
           <div className="text-center mb-12">
-            <div className="flex justify-center items-center mb-6 float-on-hover">
+            <div className="flex justify-center items-center mb-6">
               <div className="relative">
                 <img src="/logo.png" alt="Logo" className="w-20 h-20 mr-4" />
               </div>
@@ -218,8 +231,8 @@ function Results() {
           <div className="flex justify-center mb-12">
             <div className="flex items-center">
               {/* Step 1: Repository */}
-              <div className="flex items-center hover-lift">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500">
+              <div className="flex items-center">
+                <div className="hover-lift w-10 h-10 rounded-full flex items-center justify-center bg-green-500">
                   <Github className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-sm font-medium ml-2 text-white">Repository</span>
@@ -231,8 +244,8 @@ function Results() {
               </div>
               
               {/* Step 2: Analysis */}
-              <div className="flex items-center hover-lift">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500">
+              <div className="flex items-center">
+                <div className="hover-lift w-10 h-10 rounded-full flex items-center justify-center bg-green-500">
                   <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
@@ -246,8 +259,8 @@ function Results() {
               </div>
               
               {/* Step 3: Results */}
-              <div className="flex items-center hover-lift">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500">
+              <div className="flex items-center">
+                <div className="hover-lift w-10 h-10 rounded-full flex items-center justify-center bg-blue-500">
                   <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
@@ -284,51 +297,90 @@ function Results() {
             </div>
 
             {/* Issues */}
-            {result.issues.length > 0 ? (
-              <div className="glass-strong rounded-2xl p-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Security Issues Found</h3>
-                <div className="space-y-4">
-                  {result.issues.map((issue, index) => (
-                    <div
-                      key={index}
-                      className={`border-2 rounded-xl p-6 hover-lift transition-all duration-300 ${getSeverityColor(issue.severity)}`}
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center">
-                          {getSeverityIcon(issue.severity)}
-                          <span className="ml-3 font-bold capitalize text-lg">{issue.severity}</span>
-                          <span className="ml-3 text-gray-400">•</span>
-                          <span className="ml-3 font-semibold">{issue.type}</span>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => copyToClipboard(issue.recommendation)}
-                            className="p-2 hover:bg-white rounded-lg transition-colors"
-                            title="Copy recommendation"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                        </div>
+            <div className="glass-strong rounded-2xl p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Security Issues Found</h3>
+              <div className="space-y-4">
+                {sampleIssues.map((issue, index) => (
+                  <div
+                    key={index}
+                    className={`border-2 rounded-xl p-6 hover-lift transition-all duration-300 ${getSeverityColor(issue.severity)}`}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center">
+                        {getSeverityIcon(issue.severity)}
+                        <span className={`ml-3 font-bold capitalize text-lg ${
+                          issue.severity === 'critical' ? 'text-red-800' : 
+                          issue.severity === 'high' ? 'text-orange-800' : 
+                          issue.severity === 'medium' ? 'text-yellow-800' : 
+                          issue.severity === 'low' ? 'text-blue-800' : 
+                          'text-gray-800'
+                        }`}>{issue.severity}</span>
+                        <span className={`ml-3 ${
+                          issue.severity === 'critical' ? 'text-red-900' : 
+                          issue.severity === 'high' ? 'text-orange-900' : 
+                          issue.severity === 'medium' ? 'text-yellow-900' : 
+                          issue.severity === 'low' ? 'text-blue-900' : 
+                          'text-gray-900'
+                        }`}>•</span>
+                        <span className={`ml-3 font-semibold ${
+                          issue.severity === 'critical' ? 'text-red-700' : 
+                          issue.severity === 'high' ? 'text-orange-700' : 
+                          issue.severity === 'medium' ? 'text-yellow-700' : 
+                          issue.severity === 'low' ? 'text-blue-700' : 
+                          'text-gray-700'
+                        }`}>{issue.type}</span>
                       </div>
-                      <p className="text-gray-800 mb-4 text-lg">{issue.description}</p>
-                      <div className="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg">
-                        <code className="font-mono">{issue.file}</code>
-                        {issue.line && <span className="ml-2">Line {issue.line}</span>}
-                      </div>
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <strong className="text-blue-800">Recommendation:</strong>
-                        <p className="text-blue-700 mt-1">{issue.recommendation}</p>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => copyToClipboard(issue.recommendation)}
+                          className="p-2 hover:bg-white rounded-lg transition-colors"
+                          title="Copy recommendation"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-gray-800 mb-4 text-lg">{issue.description}</p>
+                    <div className="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg">
+                      <code className="font-mono">{issue.file}</code>
+                      {issue.line && <span className="ml-2">Line {issue.line}</span>}
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <strong className="text-blue-800">Recommendation:</strong>
+                      <p className="text-blue-700 mt-1">{issue.recommendation}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="glass-strong rounded-2xl p-12 text-center">
-                <div className="mb-6">
-                  <CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-3xl font-bold text-gray-900 mb-2">🎉 Great Job!</h3>
-                  <p className="text-xl text-gray-600">No security issues found in your repository!</p>
+            </div>
+
+            {/* Pull Request */}
+            {result.pullRequest && result.pullRequest.created && (
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-xl mb-6 border-2 border-blue-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <GitBranch className="w-6 h-6 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-blue-800">🎉 Pull Request Created!</h3>
+                </div>
+                <p className="text-blue-700 mb-4">
+                  We've automatically created a pull request with a detailed security analysis report.
+                </p>
+                <div className="flex gap-3">
+                  <a
+                    href={result.pullRequest.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover-lift inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    View Pull Request
+                  </a>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(result.pullRequest?.url || '')}
+                    className="hover-lift inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors duration-200"
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy Link
+                  </button>
                 </div>
               </div>
             )}
