@@ -361,12 +361,67 @@ async function createSecurityPullRequest(owner, repo, analysisResult) {
 
   // Create individual fix files for each vulnerability
   for (const [index, fix] of analysisResult.fixes.entries()) {
-    const fixFileName = `PATCHY_FIX_${index + 1}_${fix.file_path.replace(/\//g, '_').replace(/\./g, '_')}.md`;
-    const fixContent = `# Security Fix for ${fix.file_path}
+    try {
+      // Get the current file content from the fork
+      const currentFileResponse = await axios.get(
+        `https://api.github.com/repos/${forkOwner}/${forkName}/contents/${fix.file_path}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Patchy-Security-Bot'
+          },
+          params: { ref: newBranchName }
+        }
+      );
 
-**Vulnerability Type:** ${fix.vulnerability_type}  
-**Confidence Level:** ${fix.fix_confidence}  
-**Breaking Changes:** ${fix.breaking_changes ? 'Yes' : 'No'}
+      // Update the file with the fixed code
+      await axios.put(
+        `https://api.github.com/repos/${forkOwner}/${forkName}/contents/${fix.file_path}`,
+        {
+          message: `🔒 Fix ${fix.vulnerability_type} vulnerability in ${fix.file_path}\n\n- ${fix.explanation}\n- Confidence: ${fix.fix_confidence}\n- Breaking changes: ${fix.breaking_changes ? 'Yes' : 'No'}`,
+          content: Buffer.from(fix.fixed_code).toString('base64'),
+          sha: currentFileResponse.data.sha,
+          branch: newBranchName
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Patchy-Security-Bot'
+          }
+        }
+      );
+
+      appliedFixes.push({
+        file: fix.file_path,
+        vulnerability: fix.vulnerability_type,
+        confidence: fix.fix_confidence,
+        breaking_changes: fix.breaking_changes
+      });
+
+      console.log(`✅ Applied fix ${index + 1}/${analysisResult.fixes.length}: ${fix.file_path}`);
+    } catch (fileError) {
+      console.error(`❌ Failed to apply fix to ${fix.file_path}:`, fileError.message);
+      // Continue with other fixes even if one fails
+    }
+  }
+
+  // Create a single summary file with fix details for reference
+  const fixSummaryContent = `# 🔒 Patchy Security Fixes Applied
+
+## Summary
+- **Total Fixes Applied:** ${appliedFixes.length}/${analysisResult.fixes.length}
+- **Analysis Date:** ${analysisResult.summary.analysis_date}
+- **Repository:** ${analysisResult.summary.repository}
+
+## Applied Fixes
+
+${appliedFixes.map((fix, index) => `### ${index + 1}. ${fix.file}
+- **Vulnerability:** ${fix.vulnerability}
+- **Confidence:** ${fix.confidence}
+- **Breaking Changes:** ${fix.breaking_changes ? 'Yes' : 'No'}
+`).join('\n')}
 
 ## Original Issue
 ${fix.explanation}
