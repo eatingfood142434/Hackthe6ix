@@ -12,16 +12,22 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
  * Helper function to parse GitHub URL and extract owner/repo
  */
 function parseGitHubUrl(url) {
-  const regex = /github\.com\/([^/]+)\/([^/]+)(?:\.git)?(?:\/.*)?$/;
+  const regex = /github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/;
   const match = url.match(regex);
   
   if (!match) {
     throw new Error('Invalid GitHub URL format');
   }
   
+  let repo = match[2];
+  // Remove .git suffix if present
+  if (repo.endsWith('.git')) {
+    repo = repo.slice(0, -4);
+  }
+  
   return {
     owner: match[1],
-    repo: match[2]
+    repo: repo
   };
 }
 

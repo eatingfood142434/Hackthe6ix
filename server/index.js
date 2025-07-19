@@ -47,7 +47,9 @@ app.use('/health', healthRoutes);
 
 // API routes (with authentication)
 app.use('/api/vellum', validateApiKey, vellumRoutes);
-app.use('/api/github', validateApiKey, githubRoutes);
+
+// GitHub routes (no authentication required)
+app.use('/api/github', githubRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
