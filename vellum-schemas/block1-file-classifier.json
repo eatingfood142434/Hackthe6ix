@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "File Classification Output",
+  "description": "Output schema for the file classification and filtering block",
+  "type": "object",
+  "properties": {
+    "high_risk_files": {
+      "type": "array",
+      "description": "Files with high security risk that require immediate analysis",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "File name"
+          },
+          "path": {
+            "type": "string",
+            "description": "Full file path"
+          },
+          "parent_folder": {
+            "type": "string",
+            "description": "Parent directory"
+          },
+          "file_type": {
+            "type": "string",
+            "enum": ["WEB_APP", "API", "CONFIG", "DATABASE", "FRONTEND", "OTHER"],
+            "description": "Categorized file type"
+          },
+          "language": {
+            "type": "string",
+            "description": "Programming language detected"
+          },
+          "risk_reason": {
+            "type": "string",
+            "description": "Why this file is classified as high risk"
+          }
+        },
+        "required": ["name", "path", "parent_folder", "file_type", "language", "risk_reason"]
+      }
+    },
+    "medium_risk_files": {
+      "type": "array",
+      "description": "Files with medium security risk",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "File name"
+          },
+          "path": {
+            "type": "string",
+            "description": "Full file path"
+          },
+          "parent_folder": {
+            "type": "string",
+            "description": "Parent directory"
+          },
+          "file_type": {
+            "type": "string",
+            "enum": ["WEB_APP", "API", "CONFIG", "DATABASE", "FRONTEND", "OTHER"],
+            "description": "Categorized file type"
+          },
+          "language": {
+            "type": "string",
+            "description": "Programming language detected"
+          },
+          "risk_reason": {
+            "type": "string",
+            "description": "Why this file is classified as medium risk"
+          }
+        },
+        "required": ["name", "path", "parent_folder", "file_type", "language", "risk_reason"]
+      }
+    },
+    "low_risk_files": {
+      "type": "array",
+      "description": "Files with low security risk",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "File name"
+          },
+          "path": {
+            "type": "string",
+            "description": "Full file path"
+          },
+          "parent_folder": {
+            "type": "string",
+            "description": "Parent directory"
+          },
+          "file_type": {
+            "type": "string",
+            "enum": ["WEB_APP", "API", "CONFIG", "DATABASE", "FRONTEND", "OTHER"],
+            "description": "Categorized file type"
+          },
+          "language": {
+            "type": "string",
+            "description": "Programming language detected"
+          },
+          "risk_reason": {
+            "type": "string",
+            "description": "Why this file is classified as low risk"
+          }
+        },
+        "required": ["name", "path", "parent_folder", "file_type", "language", "risk_reason"]
+      }
+    },
+    "ignored_files": {
+      "type": "array",
+      "description": "Files that were ignored (images, binaries, etc.)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "File name"
+          },
+          "path": {
+            "type": "string",
+            "description": "Full file path"
+          },
+          "ignore_reason": {
+            "type": "string",
+            "description": "Why this file was ignored"
+          }
+        },
+        "required": ["name", "path", "ignore_reason"]
+      }
+    },
+    "classification_summary": {
+      "type": "object",
+      "description": "Summary of file classification results",
+      "properties": {
+        "total_files": {
+          "type": "integer",
+          "description": "Total number of files processed"
+        },
+        "high_risk_count": {
+          "type": "integer",
+          "description": "Number of high risk files"
+        },
+        "medium_risk_count": {
+          "type": "integer",
+          "description": "Number of medium risk files"
+        },
+        "low_risk_count": {
+          "type": "integer",
+          "description": "Number of low risk files"
+        },
+        "ignored_count": {
+          "type": "integer",
+          "description": "Number of ignored files"
+        }
+      },
+      "required": ["total_files", "high_risk_count", "medium_risk_count", "low_risk_count", "ignored_count"]
+    }
+  },
+  "required": ["high_risk_files", "medium_risk_files", "low_risk_files", "ignored_files", "classification_summary"]
+}
