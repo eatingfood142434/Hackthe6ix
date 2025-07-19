@@ -297,72 +297,62 @@ function Results() {
             </div>
 
             {/* Issues */}
-            {result.issues.length > 0 ? (
-              <div className="glass-strong rounded-2xl p-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Security Issues Found</h3>
-                <div className="space-y-4">
-                  {result.issues.map((issue, index) => (
-                    <div
-                      key={index}
-                      className={`border-2 rounded-xl p-6 hover-lift transition-all duration-300 ${getSeverityColor(issue.severity)}`}
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center">
-                          {getSeverityIcon(issue.severity)}
-                          <span className={`ml-3 font-bold capitalize text-lg ${
-                            issue.severity === 'critical' ? 'text-red-800' : 
-                            issue.severity === 'high' ? 'text-orange-800' : 
-                            issue.severity === 'medium' ? 'text-yellow-800' : 
-                            issue.severity === 'low' ? 'text-blue-800' : 
-                            'text-gray-800'
-                          }`}>{issue.severity}</span>
-                          <span className={`ml-3 ${
-                            issue.severity === 'critical' ? 'text-red-900' : 
-                            issue.severity === 'high' ? 'text-orange-900' : 
-                            issue.severity === 'medium' ? 'text-yellow-900' : 
-                            issue.severity === 'low' ? 'text-blue-900' : 
-                            'text-gray-900'
-                          }`}>•</span>
-                          <span className={`ml-3 font-semibold ${
-                            issue.severity === 'critical' ? 'text-red-700' : 
-                            issue.severity === 'high' ? 'text-orange-700' : 
-                            issue.severity === 'medium' ? 'text-yellow-700' : 
-                            issue.severity === 'low' ? 'text-blue-700' : 
-                            'text-gray-700'
-                          }`}>{issue.type}</span>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => copyToClipboard(issue.recommendation)}
-                            className="p-2 hover:bg-white rounded-lg transition-colors"
-                            title="Copy recommendation"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                        </div>
+            <div className="glass-strong rounded-2xl p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Security Issues Found</h3>
+              <div className="space-y-4">
+                {sampleIssues.map((issue, index) => (
+                  <div
+                    key={index}
+                    className={`border-2 rounded-xl p-6 hover-lift transition-all duration-300 ${getSeverityColor(issue.severity)}`}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center">
+                        {getSeverityIcon(issue.severity)}
+                        <span className={`ml-3 font-bold capitalize text-lg ${
+                          issue.severity === 'critical' ? 'text-red-800' : 
+                          issue.severity === 'high' ? 'text-orange-800' : 
+                          issue.severity === 'medium' ? 'text-yellow-800' : 
+                          issue.severity === 'low' ? 'text-blue-800' : 
+                          'text-gray-800'
+                        }`}>{issue.severity}</span>
+                        <span className={`ml-3 ${
+                          issue.severity === 'critical' ? 'text-red-900' : 
+                          issue.severity === 'high' ? 'text-orange-900' : 
+                          issue.severity === 'medium' ? 'text-yellow-900' : 
+                          issue.severity === 'low' ? 'text-blue-900' : 
+                          'text-gray-900'
+                        }`}>•</span>
+                        <span className={`ml-3 font-semibold ${
+                          issue.severity === 'critical' ? 'text-red-700' : 
+                          issue.severity === 'high' ? 'text-orange-700' : 
+                          issue.severity === 'medium' ? 'text-yellow-700' : 
+                          issue.severity === 'low' ? 'text-blue-700' : 
+                          'text-gray-700'
+                        }`}>{issue.type}</span>
                       </div>
-                      <p className="text-gray-800 mb-4 text-lg">{issue.description}</p>
-                      <div className="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg">
-                        <code className="font-mono">{issue.file}</code>
-                        {issue.line && <span className="ml-2">Line {issue.line}</span>}
-                      </div>
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <strong className="text-blue-800">Recommendation:</strong>
-                        <p className="text-blue-700 mt-1">{issue.recommendation}</p>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => copyToClipboard(issue.recommendation)}
+                          className="p-2 hover:bg-white rounded-lg transition-colors"
+                          title="Copy recommendation"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-gray-800 mb-4 text-lg">{issue.description}</p>
+                    <div className="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg">
+                      <code className="font-mono">{issue.file}</code>
+                      {issue.line && <span className="ml-2">Line {issue.line}</span>}
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <strong className="text-blue-800">Recommendation:</strong>
+                      <p className="text-blue-700 mt-1">{issue.recommendation}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="glass-strong rounded-2xl p-12 text-center">
-                <div className="mb-6">
-                  <CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-3xl font-bold text-gray-900 mb-2">🎉 Great Job!</h3>
-                  <p className="text-xl text-gray-600">No security issues found in your repository!</p>
-                </div>
-              </div>
-            )}
+            </div>
 
             {/* Pull Request */}
             {result.pullRequest && result.pullRequest.created && (
