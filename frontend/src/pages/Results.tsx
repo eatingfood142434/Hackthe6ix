@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Github, AlertTriangle, CheckCircle, Copy, ExternalLink, GitBranch, FileText, Shield, Clock, Settings } from 'lucide-react';
+import { Github, AlertTriangle, CheckCircle, Copy, ExternalLink, GitBranch, FileText, Shield, Clock, Settings, Home } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -518,11 +518,20 @@ def login():
           
           {/* Header */}
           <div className="text-center mb-12">
-            <div className="flex justify-center items-center mb-6">
+            <div className="flex justify-center items-center mb-6 relative">
               <div className="relative">
                 <img src="/logo.png" alt="Logo" className="w-20 h-20 mr-4" />
               </div>
               <h1 className="text-6xl font-bold text-white">Patchy</h1>
+              {/* Return Home Button */}
+              <button
+                onClick={() => navigate('/')}
+                className="absolute right-0 -top-8 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:scale-105 backdrop-blur-sm border border-white/20"
+                title="Return to Home"
+              >
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">Home</span>
+              </button>
             </div>
             <p className="text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
               Security Analysis Complete
