@@ -42,13 +42,18 @@ function parseGitHubUrl(url) {
  */
 async function getAllFileContents(owner, repo, path = '', branch = 'main') {
   const files = [];
-  const relevantExtensions = ['js', 'ts', 'py', 'java', 'php', 'go', 'rb', 'cs', 'cpp', 'c'];
+  // Expanded list of relevant extensions for modern web development
+  const relevantExtensions = [
+    'js', 'jsx', 'ts', 'tsx', 'vue', 'svelte',  // Frontend frameworks
+    'py', 'java', 'php', 'go', 'rb', 'cs', 'cpp', 'c', 'rs',  // Backend languages
+    'sql', 'graphql', 'json', 'yaml', 'yml', 'toml',  // Config/data files
+    'sh', 'bash', 'ps1', 'dockerfile'  // Scripts and deployment
+  ];
   
-  // Directories and files to skip (build artifacts, dependencies, etc.)
+  // Only skip the most problematic directories (be more selective)
   const skipDirectories = [
-    '.next', 'node_modules', 'dist', 'build', '.git', '.vscode', '.idea',
-    'vendor', 'target', '__pycache__', '.pytest_cache', 'coverage',
-    '.nyc_output', 'logs', 'tmp', 'temp', '.cache', '.parcel-cache'
+    '.next', 'node_modules', 'dist', 'build', '.git',  // Essential skips
+    'vendor', '__pycache__', '.cache'  // Language-specific build artifacts
   ];
   
   const skipFilePatterns = [
