@@ -17,7 +17,7 @@ function Home() {
   }, [location.state]);
 
   const validateGitHubUrl = (url: string): boolean => {
-    const githubPattern = /^https:\/\/github\.com\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+\/?$/;
+    const githubPattern = /^https:\/\/github\.com\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+(\.git)?\/?$/;
     return githubPattern.test(url.trim());
   };
   
@@ -119,7 +119,7 @@ function Home() {
                     id="repoUrl"
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
-                    placeholder="https://github.com/username/repository"
+                    placeholder="https://github.com/username/repository.git"
                     className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg placeholder-gray-500 text-gray-800"
                   />
                   {repoUrl && validateGitHubUrl(repoUrl) && (

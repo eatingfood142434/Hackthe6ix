@@ -62,7 +62,7 @@ function Analyzing() {
         setAnalysisProgress(stageProgress.analyzing);
 
         // Make the actual API call
-        const response = await axios.post('/api/github/patch', {
+        const response = await axios.post('https://2556c43f3ecb.ngrok-free.app/api/github/patch', {
           url: repoUrl.trim()
         });
 
