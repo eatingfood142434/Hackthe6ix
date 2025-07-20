@@ -64,8 +64,11 @@ function Analyzing() {
         // Make the actual API call
         const response = await axios.post('https://a2da9c44b70e.ngrok-free.app/api/github/patch', {
           url: repoUrl.trim()
+        }, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
         });
-
         // Stage 4: Process results
         setAnalysisStage('processing');
         setCurrentMessage(stageMessages.processing);
