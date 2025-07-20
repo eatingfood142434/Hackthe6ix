@@ -1,45 +1,31 @@
-// npm install vellum-ai --save
-const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
-const { VellumClient, Vellum } = require("vellum-ai");
+const express = require('express');
+const axios = require('axios');
+const { check, validationResult } = require('express-validator');
+const router = express.Router();
 
-// create your API key here: https://app.vellum.ai/api-keys#keys
-const vellum = new VellumClient({
-  apiKey: process.env.VELLUM_API_KEY,
+const VELLUM_API_KEY = process.env.VELLUM_API_KEY;
+if (!VELLUM_API_KEY) throw new Error('Missing VELLUM_API_KEY');
+
+const NAME_PATTERN = /^[A-Za-z0-9-_]+$/;
+
+router.post('/analyze', [
+  check('owner').matches(NAME_PATTERN),
+  check('repo').matches(NAME_PATTERN),
+  check('branch').optional().matches(/^[A-Za-z0-9_\-\/]+$/)
+], async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+  const { owner, repo, branch = 'main' } = req.body;
+  try {
+    const response = await axios.post(
+      'https://api.vellum.ai/analyze',
+      { owner, repo, branch },
+      { headers: { Authorization: `Bearer ${VELLUM_API_KEY}`, 'Content-Type': 'application/json' } }
+    );
+    res.json(response.data);
+  } catch (err) {
+    next(err);
+  }
 });
 
-// Main async function to execute the workflow
-async function executeVellumWorkflow(githubResponse) {
-  // configurable parameters
-  const workflowDeploymentName = "patchy";
-  const releaseTag = "LATEST";
-  const inputs = [
-    {
-      type: "JSON",
-      name: "fileTree",
-      value: githubResponse,
-    }
-  ];
-  const request = {
-    workflowDeploymentName,
-    releaseTag,
-    inputs,
-  };
-  try {
-    // execute the workflow
-    const result = await vellum.executeWorkflow(request);
-
-    if (result.data.state === "REJECTED") {
-      throw new Error(result.data.error.message);
-    }
-
-    console.log(result.data.outputs);
-    return result.data.outputs;
-  } catch (error) {
-    console.error("Error executing Vellum workflow:", error);
-    throw error;
-  }
-}
-
-// Export for use in other modules
-module.exports = { executeVellumWorkflow };
+module.exports = router;

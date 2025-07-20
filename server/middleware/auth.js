@@ -1,38 +1,29 @@
-/**
- * API Key validation middleware
- * Validates API key for protected routes
- */
-const validateApiKey = (req, res, next) => {
-  const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
-  
+const crypto = require('crypto');
+
+// Single API key expected, or comma-separated list
+const validKeys = (process.env.API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
+
+if (validKeys.length === 0) {
+  throw new Error('No API_KEYS configured');
+}
+
+module.exports = (req, res, next) => {
+  const apiKey = req.header('x-api-key');
   if (!apiKey) {
-    return res.status(401).json({
-      success: false,
-      error: 'API key required. Please provide x-api-key header or Authorization Bearer token.'
-    });
+    return res.status(401).json({ error: 'API key required' });
   }
-
-  // Check against environment variable
-  const validApiKey = process.env.API_KEY;
-  
-  if (!validApiKey) {
-    console.error('API_KEY not configured in environment variables');
-    return res.status(500).json({
-      success: false,
-      error: 'Server configuration error'
-    });
+  let authorized = false;
+  validKeys.forEach(key => {
+    const a = Buffer.from(apiKey);
+    const b = Buffer.from(key);
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+      authorized = true;
+    }
+  });
+  if (!authorized) {
+    return res.status(403).json({ error: 'Invalid API key' });
   }
-
-  if (apiKey !== validApiKey) {
-    return res.status(401).json({
-      success: false,
-      error: 'Invalid API key'
-    });
-  }
-
-  // Add API key info to request for logging
-  req.apiKeyValid = true;
+  // Attach placeholder user for downstream
+  req.user = { apiKey }; 
   next();
 };
-
-module.exports = validateApiKey;
