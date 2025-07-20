@@ -1,0 +1,20 @@
+{
+  "name": "hackthe6ix-security-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:frontend": "cd frontend && npm install",
+    "install:server": "cd server && npm install",
+    "install:all": "npm run install:frontend && npm run install:server",
+    "build": "cd frontend && npm run build",
+    "start:frontend": "cd frontend && npm start",
+    "start:server": "cd server && npm start",
+    "dev": "concurrently \"npm run start:server\" \"npm run start:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
