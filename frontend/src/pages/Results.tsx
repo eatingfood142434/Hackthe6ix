@@ -835,23 +835,27 @@ def login():
                               <h5 className="font-semibold text-gray-900 mb-1">{step.action}</h5>
                             </div>
                           </div>
-                          <button
-                            onClick={() => copyToClipboard(step.command)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                            title="Copy command"
-                          >
-                            <Copy className="w-4 h-4 text-gray-600" />
-                          </button>
+                          {step.command && step.command !== 'null' && (
+                            <button
+                              onClick={() => copyToClipboard(step.command)}
+                              className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                              title="Copy command"
+                            >
+                              <Copy className="w-4 h-4 text-gray-600" />
+                            </button>
+                          )}
                         </div>
                         <div className="ml-11">
-                          <div className="mb-2">
-                            <strong className="text-sm text-gray-700">Command:</strong>
-                            <div className="mt-1 bg-white rounded border border-gray-300 overflow-x-auto" style={{ width: '100%' }}>
-                              <pre className="p-2 text-gray-900 text-sm font-mono whitespace-nowrap m-0">
-                                <code>{step.command}</code>
-                              </pre>
+                          {step.command && step.command !== 'null' && (
+                            <div className="mb-2">
+                              <strong className="text-sm text-gray-700">Command:</strong>
+                              <div className="mt-1 bg-white rounded border border-gray-300 overflow-x-auto" style={{ width: '100%' }}>
+                                <pre className="p-2 text-gray-900 text-sm font-mono whitespace-nowrap m-0">
+                                  <code>{step.command}</code>
+                                </pre>
+                              </div>
                             </div>
-                          </div>
+                          )}
                           <div>
                             <strong className="text-sm text-gray-700">Verification:</strong>
                             <p className="text-sm text-gray-600 mt-1">{step.verification}</p>
