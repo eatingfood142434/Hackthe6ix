@@ -20,7 +20,12 @@ const PORT = process.env.PORT || 8080;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+    'http://localhost:3000',
+    'https://patchy-ai.vercel.app',
+    'https://patchy-theta.vercel.app',
+    'https://patchy-bot.vercel.app'
+  ],
   credentials: true
 }));
 
