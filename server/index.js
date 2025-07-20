@@ -17,17 +17,12 @@ const validateApiKey = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Security middleware
+// Security middleware - Nuclear CORS fix
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || [
-    'http://localhost:3000',
-    'https://patchy-ai.vercel.app',
-    'https://patchy-theta.vercel.app',
-    'https://patchy-bot.vercel.app'
-  ],
+  origin: true, // Allow all origins temporarily
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+  allowedHeaders: ['*'], // Allow all headers
   preflightContinue: false,
   optionsSuccessStatus: 200
 }));
