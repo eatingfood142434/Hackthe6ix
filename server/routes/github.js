@@ -67,6 +67,24 @@ async function getAllFileContents(owner, repo, path = '', branch = 'main') {
     /\.log$/
   ];
   
+  // Directories and files to skip (build artifacts, dependencies, etc.)
+  const skipDirectories = [
+    '.next', 'node_modules', 'dist', 'build', '.git', '.vscode', '.idea',
+    'vendor', 'target', '__pycache__', '.pytest_cache', 'coverage',
+    '.nyc_output', 'logs', 'tmp', 'temp', '.cache', '.parcel-cache'
+  ];
+  
+  const skipFilePatterns = [
+    /\.hot-update\./,  // Webpack hot reload files
+    /\.map$/,         // Source maps
+    /\.min\./,        // Minified files
+    /\.bundle\./,     // Bundle files
+    /\.chunk\./,      // Chunk files
+    /package-lock\.json$/,
+    /yarn\.lock$/,
+    /\.log$/
+  ];
+  
   try {
     let url = `${GITHUB_BASE_URL}/repos/${owner}/${repo}/contents`;
     if (path) {
