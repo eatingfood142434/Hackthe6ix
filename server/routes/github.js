@@ -44,6 +44,24 @@ async function getAllFileContents(owner, repo, path = '', branch = 'main') {
   const files = [];
   const relevantExtensions = ['js', 'ts', 'py', 'java', 'php', 'go', 'rb', 'cs', 'cpp', 'c'];
   
+  // Directories and files to skip (build artifacts, dependencies, etc.)
+  const skipDirectories = [
+    '.next', 'node_modules', 'dist', 'build', '.git', '.vscode', '.idea',
+    'vendor', 'target', '__pycache__', '.pytest_cache', 'coverage',
+    '.nyc_output', 'logs', 'tmp', 'temp', '.cache', '.parcel-cache'
+  ];
+  
+  const skipFilePatterns = [
+    /\.hot-update\./,  // Webpack hot reload files
+    /\.map$/,         // Source maps
+    /\.min\./,        // Minified files
+    /\.bundle\./,     // Bundle files
+    /\.chunk\./,      // Chunk files
+    /package-lock\.json$/,
+    /yarn\.lock$/,
+    /\.log$/
+  ];
+  
   try {
     let url = `${GITHUB_BASE_URL}/repos/${owner}/${repo}/contents`;
     if (path) {
@@ -63,7 +81,23 @@ async function getAllFileContents(owner, repo, path = '', branch = 'main') {
     
     // Process all items in parallel instead of sequentially
     const itemPromises = items.map(async (item) => {
+      // Skip directories that are build artifacts or dependencies
+      if (item.type === 'dir') {
+        const dirName = item.name.toLowerCase();
+        if (skipDirectories.includes(dirName)) {
+          console.log(`Skipping directory: ${item.path}`);
+          return [];
+        }
+      }
+      
       if (item.type === 'file') {
+        // Skip files that match skip patterns
+        const fileName = item.name.toLowerCase();
+        if (skipFilePatterns.some(pattern => pattern.test(fileName))) {
+          console.log(`Skipping file: ${item.path}`);
+          return null;
+        }
+        
         // Check if file is relevant for security analysis before fetching content
         const ext = item.name.split('.').pop()?.toLowerCase();
         
